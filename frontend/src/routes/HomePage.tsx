@@ -11,6 +11,19 @@ import type {
   StorySummary,
 } from '../types';
 
+const PORTAL_COLORS = [
+  'bg-rose-500',
+  'bg-orange-500',
+  'bg-amber-500',
+  'bg-emerald-500',
+  'bg-teal-500',
+  'bg-cyan-500',
+  'bg-indigo-500',
+  'bg-fuchsia-500',
+  'bg-lime-600',
+  'bg-stone-600',
+] as const;
+
 const CATEGORIES: { name: string; slug: string; tone: string }[] = [
   { name: 'Política', slug: 'politica', tone: 'from-red-500 to-slate-900' },
   { name: 'Economía', slug: 'economia', tone: 'from-emerald-600 to-slate-900' },
@@ -95,11 +108,12 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
   const points = useMemo(
     () =>
       portals
-        ? portals.map((p) => ({
+        ? portals.map((p, i) => ({
             slug: p.slug,
             name: p.name,
             x: scoreToPercent(getEconomicScore(p)),
             y: 100 - scoreToPercent(getPeronismScore(p)),
+            color: PORTAL_COLORS[i % PORTAL_COLORS.length],
           }))
         : [],
     [portals],
@@ -123,26 +137,34 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
         <span>Estatismo</span>
         <span>Liberalismo</span>
       </div>
-      <div className="relative h-48 rounded-lg border border-ink/10">
+      <div className="relative h-56 rounded-lg border border-ink/10 sm:h-48">
         <div className="absolute left-1/2 top-0 h-full w-px bg-ink/10" />
         <div className="absolute left-0 top-1/2 h-px w-full bg-ink/10" />
-        <div className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+        {/* Mobile: solo etiquetas de eje Y para no pisarse */}
+        <div className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:hidden">
+          Antiperonismo
+        </div>
+        <div className="pointer-events-none absolute bottom-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:hidden">
+          Peronismo
+        </div>
+        {/* Desktop: 4 cuadrantes */}
+        <div className="pointer-events-none absolute left-1.5 top-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
           Estat. · Antiperon.
         </div>
-        <div className="pointer-events-none absolute right-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+        <div className="pointer-events-none absolute right-1.5 top-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
           Lib. · Antiperon.
         </div>
-        <div className="pointer-events-none absolute bottom-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+        <div className="pointer-events-none absolute bottom-1.5 left-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
           Estat. · Peronista
         </div>
-        <div className="pointer-events-none absolute bottom-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+        <div className="pointer-events-none absolute bottom-1.5 right-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
           Lib. · Peronista
         </div>
         {points.map((p) => (
           <Link
             key={p.slug}
             to={`/portales/${p.slug}`}
-            className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink ring-2 ring-white transition hover:scale-150 hover:bg-accent focus:scale-150 focus:bg-accent focus:outline-none"
+            className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ${p.color} ring-2 ring-white transition hover:scale-150 hover:ring-accent focus:scale-150 focus:ring-accent focus:outline-none sm:h-2.5 sm:w-2.5`}
             style={{ left: `${p.x}%`, top: `${p.y}%` }}
             onMouseEnter={() => setHovered(p)}
             onMouseLeave={() => setHovered(null)}
@@ -153,7 +175,7 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
         ))}
         {hovered && (
           <div
-            className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[10px] font-medium text-paper shadow"
+            className="pointer-events-none absolute z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[10px] font-medium text-paper shadow sm:block"
             style={{
               left: `${hovered.x}%`,
               top: hovered.y < 50 ? `calc(${hovered.y}% + 12px)` : `calc(${hovered.y}% - 24px)`,
@@ -163,6 +185,21 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
           </div>
         )}
       </div>
+
+      {/* Leyenda visible solo en mobile: linkea cada portal por nombre */}
+      <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-ink/10 pt-3 text-xs sm:hidden">
+        {points.map((p) => (
+          <li key={p.slug} className="min-w-0">
+            <Link
+              to={`/portales/${p.slug}`}
+              className="flex items-center gap-2 truncate text-ink/70 hover:text-accent"
+            >
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${p.color}`} />
+              <span className="truncate">{p.name}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
