@@ -51,14 +51,14 @@ const AXIS_CONFIG: Record<AxisId, AxisConfig> = {
       liberal: 'Liberalismo',
     },
     colors: {
-      estatista: 'bg-amber-500',
+      estatista: 'bg-red-500',
       centro: 'bg-gray-400',
-      liberal: 'bg-emerald-500',
+      liberal: 'bg-blue-700',
     },
     light: {
-      estatista: 'bg-amber-50 border-amber-200 text-amber-900',
+      estatista: 'bg-red-50 border-red-200 text-red-900',
       centro: 'bg-gray-100 border-gray-300 text-gray-800',
-      liberal: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+      liberal: 'bg-blue-50 border-blue-200 text-blue-900',
     },
   },
   peronism_antiperonism: {
@@ -72,12 +72,12 @@ const AXIS_CONFIG: Record<AxisId, AxisConfig> = {
     colors: {
       peronista: 'bg-sky-500',
       centro: 'bg-gray-400',
-      antiperonista: 'bg-fuchsia-500',
+      antiperonista: 'bg-violet-500',
     },
     light: {
       peronista: 'bg-sky-50 border-sky-200 text-sky-900',
       centro: 'bg-gray-100 border-gray-300 text-gray-800',
-      antiperonista: 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-900',
+      antiperonista: 'bg-violet-50 border-violet-200 text-violet-900',
     },
   },
 };

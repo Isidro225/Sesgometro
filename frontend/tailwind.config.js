@@ -6,7 +6,7 @@ export default {
       colors: {
         ink: '#0f1419',
         paper: '#fafaf7',
-        accent: '#2d6cdf',
+        accent: '#7c2d3a',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

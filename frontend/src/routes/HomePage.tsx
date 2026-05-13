@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AxisCoverageBar } from '../components/BlindspotBar';
-import { OrientationBadge } from '../components/OrientationBadge';
+import { FeedArticleCard } from '../components/FeedArticleCard';
 import { ApiError, listArticles, listPortals, listStories } from '../lib/api';
 import type {
   ArticleFeedItem,
@@ -49,20 +49,6 @@ function formatCount(value: number): string {
   return new Intl.NumberFormat('es-AR').format(value);
 }
 
-function timeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const diffMs = Date.now() - date.getTime();
-  if (diffMs < 0) return 'ahora';
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'ahora';
-  if (mins < 60) return `hace ${mins} min`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs} h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return `hace ${days} d`;
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
-}
-
 function formatTodayHeader(): string {
   return new Date().toLocaleDateString('es-AR', {
     weekday: 'long',
@@ -78,7 +64,7 @@ function FeaturedStoryCard({ story }: { story: StorySummary }) {
   return (
     <Link
       to={`/historias/${story.id}`}
-      className="group flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6 shadow-sm transition hover:border-accent hover:shadow"
+      className="group flex flex-col gap-4 rounded-2xl border border-ink/10 bg-white p-6 shadow-sm transition hover:border-accent hover:shadow sm:p-8"
     >
       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider">
         <span className="text-accent">Historia destacada</span>
@@ -104,52 +90,8 @@ function FeaturedStoryCard({ story }: { story: StorySummary }) {
 
 // ---------------------------------------------------------------------------
 
-function FeedArticleCard({ article }: { article: ArticleFeedItem }) {
-  const when = timeAgo(article.published_at ?? article.discovered_at);
-  return (
-    <article className="group flex flex-col gap-2 rounded-xl border border-ink/10 bg-white p-4 transition hover:border-accent hover:shadow-sm sm:flex-row sm:gap-5">
-      <div className="flex w-full min-w-0 flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <Link
-            to={`/portales/${article.portal_slug}`}
-            className="font-semibold uppercase tracking-wider text-accent hover:underline"
-          >
-            {article.portal_name}
-          </Link>
-          <span className="text-ink/30">·</span>
-          <span className="text-ink/50">{when}</span>
-          {article.is_mock && (
-            <span className="rounded-full bg-ink/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-ink/60">
-              Mock
-            </span>
-          )}
-        </div>
-        <Link
-          to={`/articulos/${article.id}`}
-          className="font-serif text-lg font-bold leading-snug text-ink group-hover:text-accent"
-        >
-          {article.title ?? '(Sin título)'}
-        </Link>
-        <div className="flex flex-wrap gap-1.5">
-          <OrientationBadge
-            score={article.statism_liberalism_score}
-            axis="statism_liberalism"
-            size="sm"
-          />
-          <OrientationBadge
-            score={article.peronism_antiperonism_score}
-            axis="peronism_antiperonism"
-            size="sm"
-          />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-// ---------------------------------------------------------------------------
-
 function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
+  const [hovered, setHovered] = useState<{ name: string; x: number; y: number } | null>(null);
   const points = useMemo(
     () =>
       portals
@@ -184,21 +126,42 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
       <div className="relative h-48 rounded-lg border border-ink/10">
         <div className="absolute left-1/2 top-0 h-full w-px bg-ink/10" />
         <div className="absolute left-0 top-1/2 h-px w-full bg-ink/10" />
-        <div className="absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
-          Antiperonismo
+        <div className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+          Estat. · Antiperon.
         </div>
-        <div className="absolute bottom-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
-          Peronismo
+        <div className="pointer-events-none absolute right-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+          Lib. · Antiperon.
+        </div>
+        <div className="pointer-events-none absolute bottom-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+          Estat. · Peronista
+        </div>
+        <div className="pointer-events-none absolute bottom-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
+          Lib. · Peronista
         </div>
         {points.map((p) => (
           <Link
             key={p.slug}
             to={`/portales/${p.slug}`}
-            className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink ring-2 ring-white transition hover:scale-150 hover:bg-accent"
+            className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink ring-2 ring-white transition hover:scale-150 hover:bg-accent focus:scale-150 focus:bg-accent focus:outline-none"
             style={{ left: `${p.x}%`, top: `${p.y}%` }}
-            title={p.name}
+            onMouseEnter={() => setHovered(p)}
+            onMouseLeave={() => setHovered(null)}
+            onFocus={() => setHovered(p)}
+            onBlur={() => setHovered(null)}
+            aria-label={p.name}
           />
         ))}
+        {hovered && (
+          <div
+            className="pointer-events-none absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-0.5 text-[10px] font-medium text-paper shadow"
+            style={{
+              left: `${hovered.x}%`,
+              top: hovered.y < 50 ? `calc(${hovered.y}% + 12px)` : `calc(${hovered.y}% - 24px)`,
+            }}
+          >
+            {hovered.name}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -222,7 +185,7 @@ function CategoriesGrid() {
         {CATEGORIES.map((cat) => (
           <Link
             key={cat.slug}
-            to={`/historias?categoria=${cat.slug}`}
+            to={`/noticias?categoria=${cat.slug}`}
             className={`group relative overflow-hidden rounded-lg bg-gradient-to-br ${cat.tone} px-3 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:shadow`}
           >
             {cat.name}
@@ -291,23 +254,19 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 items-center gap-4 border-b border-ink/10 pb-4 text-center sm:grid-cols-[1fr_auto_1fr] sm:gap-6 sm:text-left">
-        <div className="order-2 sm:order-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
-            {formatTodayHeader()}
-          </p>
-          <h1 className="font-serif text-2xl font-bold leading-tight sm:text-3xl">
-            Las noticias del día, con el sesgo medido
-          </h1>
-        </div>
-        <div className="order-1 flex justify-center sm:order-2">
-          <img src="/logo.png" alt="Sesgómetro" className="h-20 w-auto sm:h-28" />
-        </div>
-        <p className="order-3 max-w-md justify-self-center text-sm text-ink/60 sm:justify-self-end sm:text-right">
+      <header className="flex flex-col items-center gap-4 border-b border-ink/10 pb-8 text-center">
+        <img src="/logo.png" alt="Sesgómetro" className="h-20 w-auto sm:h-28" />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+          {formatTodayHeader()}
+        </p>
+        <h1 className="max-w-2xl font-serif text-3xl font-bold leading-tight sm:text-4xl">
+          Las noticias del día, con el sesgo medido
+        </h1>
+        <p className="max-w-xl text-sm leading-relaxed text-ink/60">
           Cada nota viene con su clasificación en los dos ejes argentinos: economía y
           peronismo/antiperonismo.
         </p>
-      </div>
+      </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <main className="flex min-w-0 flex-col gap-6">
@@ -328,18 +287,18 @@ export function HomePage() {
             </div>
 
             {!articles && !error && (
-              <div className="flex flex-col gap-3">
+              <ul className="divide-y divide-ink/10">
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <div key={i} className="animate-pulse rounded-xl border border-ink/10 bg-white p-4">
+                  <li key={i} className="animate-pulse py-5 sm:py-6">
                     <div className="mb-2 h-3 w-1/4 rounded bg-ink/10" />
-                    <div className="mb-3 h-5 w-3/4 rounded bg-ink/10" />
+                    <div className="mb-3 h-6 w-3/4 rounded bg-ink/10" />
                     <div className="flex gap-2">
                       <div className="h-4 w-24 rounded-full bg-ink/10" />
                       <div className="h-4 w-24 rounded-full bg-ink/10" />
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
 
             {articles && articles.length === 0 && (
@@ -349,7 +308,7 @@ export function HomePage() {
             )}
 
             {articles && articles.length > 0 && (
-              <ul className="flex flex-col gap-3">
+              <ul className="divide-y divide-ink/10">
                 {articles.map((article) => (
                   <li key={article.id}>
                     <FeedArticleCard article={article} />

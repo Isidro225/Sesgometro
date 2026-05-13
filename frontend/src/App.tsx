@@ -12,6 +12,7 @@ import { StoryDetailPage } from './routes/StoryDetailPage';
 import { AlertsPage } from './routes/AlertsPage';
 import { ArticleDetailPage } from './routes/ArticleDetailPage';
 import { CategoriesPage } from './routes/CategoriesPage';
+import { NoticiasPage } from './routes/NoticiasPage';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/noticias" element={<NoticiasPage />} />
             <Route path="/portales" element={<PortalsPage />} />
             <Route path="/portales/:slug" element={<PortalDetailPage />} />
             <Route path="/articulos/:id" element={<ArticleDetailPage />} />

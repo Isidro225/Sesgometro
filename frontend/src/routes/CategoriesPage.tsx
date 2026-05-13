@@ -62,10 +62,10 @@ export function CategoriesPage() {
           </h1>
         </div>
         <Link
-          to="/historias"
+          to="/noticias"
           className="rounded-lg border border-ink/15 px-4 py-2 text-sm font-medium text-ink/70 transition hover:border-accent hover:text-accent"
         >
-          Ver todas las historias
+          Ver todas las noticias
         </Link>
       </header>
 
@@ -73,7 +73,7 @@ export function CategoriesPage() {
         {TOPICS.map((topic) => (
           <Link
             key={topic.slug}
-            to={`/historias?categoria=${topic.slug}`}
+            to={`/noticias?categoria=${topic.slug}`}
             className={`group relative min-h-52 overflow-hidden rounded-2xl bg-gradient-to-br ${topic.tone} p-5 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg`}
           >
             <div className="absolute inset-x-5 top-5 flex flex-col items-end gap-2 opacity-80">

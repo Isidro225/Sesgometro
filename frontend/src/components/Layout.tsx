@@ -49,11 +49,14 @@ export function Layout() {
             <NavLink to="/" end className={navLinkClass}>
               Inicio
             </NavLink>
-            <NavLink to="/portales" className={navLinkClass}>
-              Portales
+            <NavLink to="/noticias" className={navLinkClass}>
+              Noticias
             </NavLink>
             <NavLink to="/historias" className={navLinkClass}>
               Historias
+            </NavLink>
+            <NavLink to="/portales" className={navLinkClass}>
+              Portales
             </NavLink>
             <NavLink to="/categorias" className={navLinkClass}>
               Categorías

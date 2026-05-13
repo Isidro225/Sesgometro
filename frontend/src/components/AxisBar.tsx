@@ -6,8 +6,8 @@ type Props = {
 };
 
 const TONES: Record<NonNullable<Props['tone']>, string> = {
-  economic: 'from-amber-500 via-gray-200 to-emerald-500',
-  peronism: 'from-sky-500 via-gray-200 to-fuchsia-500',
+  economic: 'from-red-500 via-gray-200 to-blue-700',
+  peronism: 'from-sky-500 via-gray-200 to-violet-500',
   legacy: 'from-red-400 via-gray-200 to-blue-500',
 };
 
