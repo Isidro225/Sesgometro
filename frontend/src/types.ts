@@ -1,6 +1,7 @@
 export type AxisScore = {
   score: number;
-  label: string;
+  /** Legacy. El UI lo deriva del score via classifyAxis(). Puede venir null en análisis nuevos. */
+  label: string | null;
   justification: string;
 };
 

@@ -103,21 +103,62 @@ function FeaturedStoryCard({ story }: { story: StorySummary }) {
 
 // ---------------------------------------------------------------------------
 
+function relaxScatter(
+  pts: { x: number; y: number }[],
+  minDist = 9,
+  iterations = 80,
+  anchorPull = 0.05,
+): { x: number; y: number }[] {
+  const out = pts.map((p) => ({ ox: p.x, oy: p.y, x: p.x, y: p.y }));
+  for (let it = 0; it < iterations; it++) {
+    for (let i = 0; i < out.length; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        let dx = out[j].x - out[i].x;
+        let dy = out[j].y - out[i].y;
+        let d = Math.hypot(dx, dy);
+        if (d < 0.001) {
+          // empate exacto: nudge determinista para arrancar el reparto
+          dx = ((i - j) % 2 === 0 ? 1 : -1) * 0.5;
+          dy = ((i + j) % 2 === 0 ? 1 : -1) * 0.5;
+          d = Math.hypot(dx, dy);
+        }
+        if (d < minDist) {
+          const push = (minDist - d) / 2;
+          const nx = dx / d;
+          const ny = dy / d;
+          out[i].x -= nx * push;
+          out[i].y -= ny * push;
+          out[j].x += nx * push;
+          out[j].y += ny * push;
+        }
+      }
+    }
+    for (const p of out) {
+      // tracción suave hacia la posición original
+      p.x += (p.ox - p.x) * anchorPull;
+      p.y += (p.oy - p.y) * anchorPull;
+      // clamp para no salir del chart
+      p.x = Math.max(3, Math.min(97, p.x));
+      p.y = Math.max(3, Math.min(97, p.y));
+    }
+  }
+  return out.map((p) => ({ x: p.x, y: p.y }));
+}
+
 function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
   const [hovered, setHovered] = useState<{ name: string; x: number; y: number } | null>(null);
-  const points = useMemo(
-    () =>
-      portals
-        ? portals.map((p, i) => ({
-            slug: p.slug,
-            name: p.name,
-            x: scoreToPercent(getEconomicScore(p)),
-            y: 100 - scoreToPercent(getPeronismScore(p)),
-            color: PORTAL_COLORS[i % PORTAL_COLORS.length],
-          }))
-        : [],
-    [portals],
-  );
+  const points = useMemo(() => {
+    if (!portals) return [];
+    const raw = portals.map((p, i) => ({
+      slug: p.slug,
+      name: p.name,
+      x: scoreToPercent(getEconomicScore(p)),
+      y: 100 - scoreToPercent(getPeronismScore(p)),
+      color: PORTAL_COLORS[i % PORTAL_COLORS.length],
+    }));
+    const relaxed = relaxScatter(raw);
+    return raw.map((p, i) => ({ ...p, x: relaxed[i].x, y: relaxed[i].y }));
+  }, [portals]);
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-4 shadow-sm">
@@ -133,31 +174,19 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
         </Link>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-ink/40">
-        <span>Estatismo</span>
-        <span>Liberalismo</span>
-      </div>
       <div className="relative h-56 rounded-lg border border-ink/10 sm:h-48">
         <div className="absolute left-1/2 top-0 h-full w-px bg-ink/10" />
         <div className="absolute left-0 top-1/2 h-px w-full bg-ink/10" />
-        {/* Mobile: solo etiquetas de eje Y para no pisarse */}
-        <div className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:hidden">
-          Antiperonismo
-        </div>
-        <div className="pointer-events-none absolute bottom-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:hidden">
-          Peronismo
-        </div>
-        {/* Desktop: 4 cuadrantes */}
-        <div className="pointer-events-none absolute left-1.5 top-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
+        <div className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
           Estat. · Antiperon.
         </div>
-        <div className="pointer-events-none absolute right-1.5 top-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
+        <div className="pointer-events-none absolute right-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
           Lib. · Antiperon.
         </div>
-        <div className="pointer-events-none absolute bottom-1.5 left-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
+        <div className="pointer-events-none absolute bottom-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
           Estat. · Peronista
         </div>
-        <div className="pointer-events-none absolute bottom-1.5 right-1.5 hidden text-[9px] font-semibold uppercase tracking-wider text-ink/40 sm:block">
+        <div className="pointer-events-none absolute bottom-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wider text-ink/40">
           Lib. · Peronista
         </div>
         {points.map((p) => (
