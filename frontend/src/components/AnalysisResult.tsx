@@ -1,4 +1,5 @@
 import type { Analysis, FramingFinding, ScrapedArticle } from '../types';
+import { classifyAxis } from '../lib/axisLabels';
 import { AxisBar } from './AxisBar';
 
 const FRAMING_LABELS: Record<FramingFinding['kind'], string> = {
@@ -60,7 +61,9 @@ export function AnalysisResult({ data }: Props) {
             rightLabel="Liberalismo"
             tone="economic"
           />
-          <p className="text-base font-medium">{analysis.statism_liberalism.label}</p>
+          <p className="text-base font-medium">
+            {classifyAxis('statism_liberalism', analysis.statism_liberalism.score).label}
+          </p>
           <p className="text-sm leading-relaxed text-ink/70">{analysis.statism_liberalism.justification}</p>
         </div>
 
@@ -72,7 +75,9 @@ export function AnalysisResult({ data }: Props) {
             rightLabel="Antiperonismo"
             tone="peronism"
           />
-          <p className="text-base font-medium">{analysis.peronism_antiperonism.label}</p>
+          <p className="text-base font-medium">
+            {classifyAxis('peronism_antiperonism', analysis.peronism_antiperonism.score).label}
+          </p>
           <p className="text-sm leading-relaxed text-ink/70">
             {analysis.peronism_antiperonism.justification}
           </p>

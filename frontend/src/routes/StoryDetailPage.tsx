@@ -105,11 +105,8 @@ export function StoryDetailPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-4">
-        <Link to="/historias" className="text-sm text-accent hover:underline">
-          ← Volver a historias
-        </Link>
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">{error}</div>
+      <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+        {error}
       </div>
     );
   }
@@ -120,12 +117,6 @@ export function StoryDetailPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <Link to="/historias" className="text-sm text-accent hover:underline">
-          ← Volver a historias
-        </Link>
-      </div>
-
       <header className="flex flex-col gap-3 border-b border-ink/10 pb-6">
         <h1 className="font-serif text-3xl font-bold leading-snug sm:text-4xl">
           {data.canonical_title}

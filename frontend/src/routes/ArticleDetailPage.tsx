@@ -26,11 +26,8 @@ export function ArticleDetailPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-4">
-        <Link to="/portales" className="text-sm text-accent hover:underline">
-          ← Volver a portales
-        </Link>
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">{error}</div>
+      <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+        {error}
       </div>
     );
   }
@@ -39,19 +36,16 @@ export function ArticleDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to={`/portales/${data.portal.slug}`} className="text-sm text-accent hover:underline">
-          ← Volver a {data.portal.name}
-        </Link>
-        {data.story_id !== null && (
+      {data.story_id !== null && (
+        <div className="flex justify-end">
           <Link
             to={`/historias/${data.story_id}`}
             className="text-sm text-accent hover:underline"
           >
             Ver historia agrupada →
           </Link>
-        )}
-      </div>
+        </div>
+      )}
 
       <section className="flex flex-wrap items-center gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3">
         <span className="font-semibold">{data.portal.name}</span>

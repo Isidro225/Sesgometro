@@ -46,11 +46,8 @@ export function PortalDetailPage() {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-4">
-        <Link to="/portales" className="text-sm text-accent hover:underline">
-          ← Volver a portales
-        </Link>
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">{error}</div>
+      <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+        {error}
       </div>
     );
   }
@@ -61,12 +58,6 @@ export function PortalDetailPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
-        <Link to="/portales" className="text-sm text-accent hover:underline">
-          ← Volver a portales
-        </Link>
-      </div>
-
       <header className="flex flex-col gap-3 border-b border-ink/10 pb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
