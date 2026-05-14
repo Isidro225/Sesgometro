@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listPortals, refreshAllPortals, ApiError } from '../lib/api';
-import { OrientationBadge } from '../components/OrientationBadge';
-import { PortalAxisPills } from '../components/BlindspotBar';
+import { AxisBar } from '../components/AxisBar';
 import type { PortalSummary } from '../types';
 
 function formatRelative(iso: string | null): string {
@@ -92,33 +91,27 @@ export function PortalsPage() {
                 to={`/portales/${portal.slug}`}
                 className="group flex h-full flex-col gap-3 rounded-2xl border border-ink/10 bg-white p-5 transition hover:border-accent hover:shadow"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="font-serif text-xl font-bold leading-tight">{portal.name}</h2>
-                    </div>
-                    {portal.description && (
-                      <p className="mt-1 text-sm text-ink/60">{portal.description}</p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <OrientationBadge
-                      score={portal.aggregate.avg_statism_liberalism}
-                      size="sm"
-                      axis="statism_liberalism"
-                    />
-                    <OrientationBadge
-                      score={portal.aggregate.avg_peronism_antiperonism}
-                      size="sm"
-                      axis="peronism_antiperonism"
-                    />
-                  </div>
+                <div>
+                  <h2 className="font-serif text-xl font-bold leading-tight">{portal.name}</h2>
+                  {portal.description && (
+                    <p className="mt-1 text-sm text-ink/60">{portal.description}</p>
+                  )}
                 </div>
 
-                <PortalAxisPills
-                  economicBucket={portal.economic_bucket}
-                  peronismBucket={portal.peronism_bucket}
-                />
+                <div className="mt-1 flex flex-col gap-3">
+                  <AxisBar
+                    score={portal.aggregate.avg_statism_liberalism}
+                    leftLabel="Estatismo"
+                    rightLabel="Liberalismo"
+                    tone="economic"
+                  />
+                  <AxisBar
+                    score={portal.aggregate.avg_peronism_antiperonism}
+                    leftLabel="Peronismo"
+                    rightLabel="Antiperonismo"
+                    tone="peronism"
+                  />
+                </div>
 
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/60">
                   <span>{portal.aggregate.analyzed_count} analizados</span>

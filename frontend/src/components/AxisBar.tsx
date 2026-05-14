@@ -1,5 +1,6 @@
 type Props = {
-  score: number;
+  /** `null`/`undefined` = sin datos: la barra se dibuja pero sin marker. */
+  score: number | null | undefined;
   leftLabel: string;
   rightLabel: string;
   tone?: 'economic' | 'peronism' | 'legacy';
@@ -12,8 +13,8 @@ const TONES: Record<NonNullable<Props['tone']>, string> = {
 };
 
 export function AxisBar({ score, leftLabel, rightLabel, tone = 'legacy' }: Props) {
-  const clamped = Math.max(-5, Math.min(5, score));
-  const percent = ((clamped + 5) / 10) * 100;
+  const hasScore = score !== null && score !== undefined;
+  const percent = hasScore ? ((Math.max(-5, Math.min(5, score)) + 5) / 10) * 100 : null;
 
   return (
     <div>
@@ -22,13 +23,19 @@ export function AxisBar({ score, leftLabel, rightLabel, tone = 'legacy' }: Props
         <span>{rightLabel}</span>
       </div>
       <div className={`relative h-3 rounded-full bg-gradient-to-r ${TONES[tone]}`}>
-        <div
-          className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-ink shadow"
-          style={{ left: `${percent}%` }}
-          aria-label={`Puntuación ${score}`}
-        />
+        {/* Línea de referencia del 0 (centro) */}
+        <div className="absolute left-1/2 top-0 h-full w-px bg-ink/30" />
+        {percent !== null && (
+          <div
+            className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-ink shadow"
+            style={{ left: `${percent}%` }}
+            aria-label={`Puntuación ${score!.toFixed(2)}`}
+          />
+        )}
       </div>
-      <div className="mt-1 text-right text-sm font-mono text-ink/70">{score.toFixed(2)}</div>
+      <div className="mt-1 text-right text-sm font-mono text-ink/70">
+        {hasScore ? score!.toFixed(2) : 'sin datos'}
+      </div>
     </div>
   );
 }
