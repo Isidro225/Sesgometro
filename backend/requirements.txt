@@ -12,6 +12,7 @@ sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 apscheduler==3.10.4
 selectolax==0.3.27
+protego==0.6.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 pyjwt==2.9.0

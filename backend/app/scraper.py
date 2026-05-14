@@ -6,6 +6,7 @@ from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.errors import RequestsError
 from fastapi import HTTPException
 
+from app import robots
 from app.config import settings
 from app.schemas import ScrapedArticle
 
@@ -16,6 +17,13 @@ class ScrapingError(HTTPException):
 
 
 async def fetch_html(url: str) -> str:
+    # Antes de tocar el sitio, chequeamos su robots.txt. Si nos prohíbe
+    # esta URL, salteamos limpiamente (raise) — el caller ya tiene try/except.
+    if not await robots.is_allowed(url):
+        raise ScrapingError(
+            "robots.txt del sitio prohíbe scrapear esta URL.",
+            status_code=403,
+        )
     # impersonate="chrome" replica el fingerprint TLS/HTTP de Chrome, necesario
     # para portales detrás de Cloudflare con "Just a moment" (ej. La Voz).
     # Por eso NO se setea User-Agent manualmente — lo maneja curl_cffi en
