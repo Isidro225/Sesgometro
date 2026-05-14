@@ -31,7 +31,7 @@ def discover_article_urls(homepage_html: str, seed: PortalSeed, limit: int) -> l
     tree = HTMLParser(homepage_html)
     pattern = re.compile(seed.link_pattern) if seed.link_pattern else _GENERIC_ARTICLE_PATTERN
     exclude = re.compile(seed.exclude_pattern) if seed.exclude_pattern else None
-    home_host = urlparse(seed.homepage_url).netloc
+    home_host = urlparse(seed.effective_discovery_url).netloc
 
     seen: set[str] = set()
     found: list[str] = []
@@ -40,7 +40,7 @@ def discover_article_urls(homepage_html: str, seed: PortalSeed, limit: int) -> l
         href = node.attributes.get("href")
         if not href:
             continue
-        absolute = urljoin(seed.homepage_url, href)
+        absolute = urljoin(seed.effective_discovery_url, href)
         absolute, _ = urldefrag(absolute)
         if absolute in seen:
             continue
@@ -67,5 +67,5 @@ def discover_article_urls(homepage_html: str, seed: PortalSeed, limit: int) -> l
 
 
 async def discover_for_portal(seed: PortalSeed, limit: int) -> list[str]:
-    html = await fetch_html(seed.homepage_url)
+    html = await fetch_html(seed.effective_discovery_url)
     return discover_article_urls(html, seed, limit)

@@ -1,7 +1,10 @@
 """Catálogo de portales seed (medios argentinos).
 
 Cada portal puede declarar:
-- `homepage_url`: portada que se rasca para descubrir artículos.
+- `homepage_url`: URL pública del portal (mostrada al usuario, link "Visitar sitio").
+- `discovery_url`: opcional. URL que se rasca para descubrir artículos. Si no se
+   declara, se usa `homepage_url`. Útil cuando la portada del medio no lista
+   notas (ej: La Izquierda Diario tiene un feed dedicado en /Últimas-noticias).
 - `link_pattern`: regex que la URL del enlace debe cumplir para considerarse artículo.
 - `exclude_pattern`: regex de URLs a excluir (secciones, autor, tags, etc.).
 - `bias_bucket`: bucket coarse de orientación política (`izq` | `centro` | `der`).
@@ -34,6 +37,11 @@ class PortalSeed:
     peronism_bucket: PeronismBucket = "centro"
     link_pattern: str | None = None
     exclude_pattern: str | None = None
+    discovery_url: str | None = None
+
+    @property
+    def effective_discovery_url(self) -> str:
+        return self.discovery_url or self.homepage_url
 
 
 PORTAL_SEEDS: list[PortalSeed] = [
@@ -136,6 +144,23 @@ PORTAL_SEEDS: list[PortalSeed] = [
         economic_bucket="centro",
         peronism_bucket="antiperonista",
         link_pattern=r"^https?://www\.lavoz\.com\.ar/[a-z0-9-/]+/[a-z0-9-]+_0_[A-Za-z0-9]+\.html$",
+    ),
+    PortalSeed(
+        slug="izquierda-diario",
+        name="La Izquierda Diario",
+        homepage_url="https://www.laizquierdadiario.com/",
+        # La portada del medio muestra secciones geográficas en vez de notas;
+        # el feed real está en /Últimas-noticias.
+        discovery_url="https://www.laizquierdadiario.com/%C3%9Altimas-noticias",
+        description="Diario del PTS / FIT-U. Línea editorial trotskista, anti-capitalista; crítica al peronismo desde la izquierda.",
+        bias_bucket="izq",
+        economic_bucket="estatista",
+        peronism_bucket="centro",
+        # LID no usa fecha ni ID en las URLs de notas, sólo el slug del titular.
+        # Notas reales: 6+ palabras en el slug (ej: /Bullrich-se-diferencia-de-Milei-...).
+        # Secciones (/Politica, /La-Pampa, /Provincia-de-Buenos-Aires) y autores
+        # (/Nancy-Mendez, /Juan-Manuel-Astiazaran) tienen 1-4 palabras → quedan fuera.
+        link_pattern=r"^https?://www\.laizquierdadiario\.com/[\w]+(?:-[\w]+){5,}/?$",
     ),
 ]
 

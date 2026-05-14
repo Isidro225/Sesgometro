@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     prescreen_model: str = "claude-haiku-4-5-20251001"
     embedding_model: str = "claude-haiku-4-5-20251001"
 
+    # Ollama (LLM local). Si ollama_enabled=True el analyzer corre contra el
+    # servidor local en `ollama_base_url`. Si está apagado o falla, cae a mock.
+    ollama_enabled: bool = True
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen3:8b"
+    ollama_num_ctx: int = 16384
+    ollama_timeout_seconds: int = 180
+
     scraper_timeout_seconds: int = 15
 
     frontend_origin: str = "http://localhost:5173"
@@ -19,6 +27,9 @@ class Settings(BaseSettings):
     refresh_interval_minutes: int = 60
     articles_per_portal: int = 5
     run_initial_refresh: bool = True
+    # En producción (Railway) querés esto en False: el scheduler local de la PC
+    # del autor es el único que escribe; el backend desplegado solo sirve lectura.
+    enable_scheduler: bool = True
 
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
@@ -29,7 +40,7 @@ class Settings(BaseSettings):
 
     @property
     def use_mock_analyzer(self) -> bool:
-        return not self.anthropic_api_key.strip()
+        return not self.ollama_enabled
 
     @property
     def frontend_origins(self) -> list[str]:

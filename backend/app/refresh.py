@@ -20,6 +20,11 @@ from app.schemas import Analysis as AnalysisSchema, ScrapedArticle
 
 logger = logging.getLogger("sesgometro.refresh")
 
+# Ollama corre local y procesa una request a la vez. Si lanzamos N análisis en
+# paralelo, los últimos timeoutean haciendo cola. Este semáforo serializa las
+# llamadas al analyzer a lo largo de todo el refresh (incluso entre portales).
+_ANALYZER_SEMAPHORE = asyncio.Semaphore(1)
+
 
 def seed_portals(session: Session) -> None:
     """Sincroniza los portales hardcodeados con la BD.
@@ -93,21 +98,27 @@ def _persist_article_and_analysis(
 
     framing_payload = [f.model_dump() for f in analysis.framing]
 
+    # `label` ahora viene None del analyzer (lo derivamos del score en el frontend).
+    # Las columnas legacy libauth_label / left_right_label son NOT NULL, así que las
+    # rellenamos con "" para no chocar contra el constraint de la BD.
+    stat_label = analysis.statism_liberalism.label
+    peron_label = analysis.peronism_antiperonism.label
+
     if article.analysis is None:
         session.add(
             AnalysisModel(
                 article_id=article.id,
                 left_right_score=analysis.peronism_antiperonism.score,
-                left_right_label=analysis.peronism_antiperonism.label,
+                left_right_label=peron_label or "",
                 left_right_justification=analysis.peronism_antiperonism.justification,
                 libauth_score=analysis.statism_liberalism.score,
-                libauth_label=analysis.statism_liberalism.label,
+                libauth_label=stat_label or "",
                 libauth_justification=analysis.statism_liberalism.justification,
                 statism_liberalism_score=analysis.statism_liberalism.score,
-                statism_liberalism_label=analysis.statism_liberalism.label,
+                statism_liberalism_label=stat_label,
                 statism_liberalism_justification=analysis.statism_liberalism.justification,
                 peronism_antiperonism_score=analysis.peronism_antiperonism.score,
-                peronism_antiperonism_label=analysis.peronism_antiperonism.label,
+                peronism_antiperonism_label=peron_label,
                 peronism_antiperonism_justification=analysis.peronism_antiperonism.justification,
                 emotional_load=analysis.emotional_load,
                 neutral_summary=analysis.neutral_summary,
@@ -121,16 +132,16 @@ def _persist_article_and_analysis(
     else:
         a = article.analysis
         a.left_right_score = analysis.peronism_antiperonism.score
-        a.left_right_label = analysis.peronism_antiperonism.label
+        a.left_right_label = peron_label or ""
         a.left_right_justification = analysis.peronism_antiperonism.justification
         a.libauth_score = analysis.statism_liberalism.score
-        a.libauth_label = analysis.statism_liberalism.label
+        a.libauth_label = stat_label or ""
         a.libauth_justification = analysis.statism_liberalism.justification
         a.statism_liberalism_score = analysis.statism_liberalism.score
-        a.statism_liberalism_label = analysis.statism_liberalism.label
+        a.statism_liberalism_label = stat_label
         a.statism_liberalism_justification = analysis.statism_liberalism.justification
         a.peronism_antiperonism_score = analysis.peronism_antiperonism.score
-        a.peronism_antiperonism_label = analysis.peronism_antiperonism.label
+        a.peronism_antiperonism_label = peron_label
         a.peronism_antiperonism_justification = analysis.peronism_antiperonism.justification
         a.emotional_load = analysis.emotional_load
         a.neutral_summary = analysis.neutral_summary
@@ -179,7 +190,8 @@ async def _process_article(seed: PortalSeed, portal_id: int, article_url: str) -
         if not politics_filter.is_political_news(article_data.title, article_data.text, article_url):
             logger.info("Skip no político: %s", article_url)
             return 0
-        analysis = await to_thread.run_sync(analyzer.analyze, article_data)
+        async with _ANALYZER_SEMAPHORE:
+            analysis = await to_thread.run_sync(analyzer.analyze, article_data)
     except Exception as exc:
         logger.warning("Falló análisis de %s: %s", article_url, exc)
         return 0

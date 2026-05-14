@@ -23,16 +23,19 @@ async def lifespan(_: FastAPI):
         backfilled = backfill_embeddings_and_stories(session)
     logger.info("BD inicializada y portales sembrados. Backfill: %d artículos", backfilled)
 
-    start_scheduler()
-
-    if settings.run_initial_refresh:
-        asyncio.create_task(refresh_all())
-        logger.info("Refresco inicial lanzado en background.")
+    if settings.enable_scheduler:
+        start_scheduler()
+        if settings.run_initial_refresh:
+            asyncio.create_task(refresh_all())
+            logger.info("Refresco inicial lanzado en background.")
+    else:
+        logger.info("Scheduler deshabilitado (ENABLE_SCHEDULER=false). Backend en modo solo-lectura.")
 
     try:
         yield
     finally:
-        shutdown_scheduler()
+        if settings.enable_scheduler:
+            shutdown_scheduler()
 
 
 app = FastAPI(
