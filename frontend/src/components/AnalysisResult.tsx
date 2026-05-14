@@ -47,8 +47,7 @@ export function AnalysisResult({ data }: Props) {
         <div className="text-xs font-semibold uppercase tracking-wider text-ink/50">Veredicto</div>
         <p className="text-2xl font-semibold leading-tight">{analysis.overall_label}</p>
         <div className="text-sm text-ink/60">
-          Confianza: <strong className="text-ink">{(analysis.confidence * 100).toFixed(0)}%</strong> · Modelo:{' '}
-          <code className="font-mono text-xs">{analysis.model_version}</code>
+          Confianza: <strong className="text-ink">{(analysis.confidence * 100).toFixed(0)}%</strong>
         </div>
       </section>
 
