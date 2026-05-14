@@ -11,18 +11,44 @@ import type {
   StorySummary,
 } from '../types';
 
+// Paleta categórica priorizando hues bien separadas (no solo dentro del wheel
+// puro: incluye gris cálido y marrón para abrir el espacio). Las 4 familias
+// "calientes" (orange/yellow/pink/amber/fuchsia) y las 4 "frías"
+// (blue/sky/green/purple) se intercalan para que dos índices contiguos siempre
+// salten warm↔cool. Rojo queda reservado para el override.
 const PORTAL_COLORS = [
-  'bg-rose-500',
-  'bg-orange-500',
-  'bg-amber-500',
-  'bg-emerald-500',
-  'bg-teal-500',
-  'bg-cyan-500',
-  'bg-indigo-500',
-  'bg-fuchsia-500',
-  'bg-lime-600',
-  'bg-stone-600',
+  'bg-orange-500',   // 0 — naranja vibrante
+  'bg-blue-700',     // 1 — azul profundo
+  'bg-yellow-500',   // 2 — gold
+  'bg-pink-500',     // 3 — rosa fuerte
+  'bg-green-600',    // 4 — verde puro (no emerald)
+  'bg-sky-500',      // 5 — celeste
+  'bg-purple-600',   // 6 — púrpura
+  'bg-amber-700',    // 7 — bronce/marrón cálido
+  'bg-fuchsia-600',  // 8 — magenta
+  'bg-stone-600',    // 9 — gris cálido (neutro)
 ] as const;
+
+// Identidades fijas por slug. Cada portal conocido lleva siempre su color,
+// independiente del orden que devuelva el API y de cambios en PORTAL_COLORS.
+// Para portales nuevos sin override se usa el array rotando.
+const PORTAL_COLOR_OVERRIDES: Record<string, string> = {
+  'clarin': 'bg-orange-500',
+  'la-nacion': 'bg-cyan-500',
+  'infobae': 'bg-yellow-500',
+  'pagina12': 'bg-pink-500',
+  'tn': 'bg-green-600',
+  'perfil': 'bg-purple-600',
+  'ambito': 'bg-amber-700',
+  'cronista': 'bg-blue-700',
+  'tiempo-argentino': 'bg-fuchsia-600',
+  'la-voz': 'bg-stone-700',
+  'izquierda-diario': 'bg-red-600',
+};
+
+function colorForPortal(slug: string, index: number): string {
+  return PORTAL_COLOR_OVERRIDES[slug] ?? PORTAL_COLORS[index % PORTAL_COLORS.length];
+}
 
 const CATEGORIES: { name: string; slug: string; tone: string }[] = [
   { name: 'Política', slug: 'politica', tone: 'from-red-500 to-slate-900' },
@@ -154,7 +180,7 @@ function PortalScatter({ portals }: { portals: PortalSummary[] | null }) {
       name: p.name,
       x: scoreToPercent(getEconomicScore(p)),
       y: 100 - scoreToPercent(getPeronismScore(p)),
-      color: PORTAL_COLORS[i % PORTAL_COLORS.length],
+      color: colorForPortal(p.slug, i),
     }));
     const relaxed = relaxScatter(raw);
     return raw.map((p, i) => ({ ...p, x: relaxed[i].x, y: relaxed[i].y }));

@@ -16,7 +16,9 @@ class ScrapedArticle(BaseModel):
 
 class AxisScore(BaseModel):
     score: float = Field(..., ge=-5, le=5)
-    label: str
+    # `label` se deriva del score en el frontend; mantenemos el campo opcional para
+    # compatibilidad con análisis viejos guardados en BD.
+    label: str | None = None
     justification: str
 
 

@@ -35,7 +35,9 @@ class Article(Base):
     portal_id: Mapped[int] = mapped_column(ForeignKey("portals.id"), index=True)
     url: Mapped[str] = mapped_column(String(1024), index=True)
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    author: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    # `author` puede ser una lista larga de co-autores (live blogs de La Nación
+    # concatenan 10+ firmas). Tipo Text para no chocar contra varchar(256) en Postgres.
+    author: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

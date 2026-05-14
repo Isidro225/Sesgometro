@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.categories import CATEGORY_SLUGS, classify as classify_category
@@ -30,7 +30,10 @@ def list_recent_articles(
         Query(description=f"Filtrar por categoría. Slugs: {', '.join(CATEGORY_SLUGS)}"),
     ] = None,
 ) -> list[ArticleFeedItem]:
-    """Feed reciente de artículos analizados (ordenado por discovered_at desc).
+    """Feed reciente de artículos analizados, ordenado por fecha de publicación
+    (la hora a la que salió la nota en el medio). Si la nota no trae
+    `published_at` legible — el scraper no pudo parsearlo — usamos
+    `discovered_at` como fallback para no perderla del feed.
 
     Sólo devuelve artículos con `analysis` cargado para que cada card del feed
     pueda renderizar las chips de eje. Para el home y vistas tipo portal de
@@ -39,12 +42,13 @@ def list_recent_articles(
     if categoria is not None and categoria not in CATEGORY_SLUGS:
         raise HTTPException(400, f"Categoría inválida: {categoria!r}. Permitidas: {CATEGORY_SLUGS}")
 
+    sort_key = func.coalesce(Article.published_at, Article.discovered_at)
     needs_wider_fetch = categoria is not None
     stmt = (
         select(Article)
         .join(Analysis, Analysis.article_id == Article.id)
         .options(selectinload(Article.portal), selectinload(Article.analysis))
-        .order_by(desc(Article.discovered_at))
+        .order_by(desc(sort_key))
         .limit(300 if needs_wider_fetch else limit)
     )
 
