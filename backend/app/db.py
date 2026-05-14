@@ -10,7 +10,18 @@ logger = logging.getLogger("sesgometro.db")
 
 connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
 
-engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
+# Railway (y proxies en general) tiran conexiones idle. Sin pool_pre_ping,
+# SQLAlchemy reusa la conexión muerta y el primer query falla con
+# "server closed the connection unexpectedly".
+# pool_recycle baja del default infinito a 5 min para reciclar antes de que
+# el proxy cierre por idle.
+engine = create_engine(
+    settings.database_url,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    future=True,
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
