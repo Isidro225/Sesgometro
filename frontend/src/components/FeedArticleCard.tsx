@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ArticleThumbnail } from './ArticleThumbnail';
 import { OrientationBadge } from './OrientationBadge';
 import type { ArticleFeedItem } from '../types';
 
@@ -19,7 +20,17 @@ function timeAgo(dateStr: string): string {
 export function FeedArticleCard({ article }: { article: ArticleFeedItem }) {
   const when = timeAgo(article.published_at ?? article.discovered_at);
   return (
-    <article className="group flex flex-col gap-2 py-5 transition sm:flex-row sm:gap-5 sm:py-6">
+    <article className="group flex flex-col gap-3 py-5 transition sm:flex-row sm:gap-5 sm:py-6">
+      {article.image_url && (
+        <Link to={`/articulos/${article.id}`} className="block sm:w-44 sm:flex-shrink-0">
+          <ArticleThumbnail
+            imageUrl={article.image_url}
+            siteName={article.portal_name}
+            width={400}
+            className="aspect-[16/9] w-full overflow-hidden rounded-lg bg-ink/5"
+          />
+        </Link>
+      )}
       <div className="flex w-full min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <Link

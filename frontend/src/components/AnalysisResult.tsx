@@ -1,5 +1,6 @@
 import type { Analysis, FramingFinding, ScrapedArticle } from '../types';
 import { classifyAxis } from '../lib/axisLabels';
+import { ArticleThumbnail } from './ArticleThumbnail';
 import { AxisBar } from './AxisBar';
 
 const FRAMING_LABELS: Record<FramingFinding['kind'], string> = {
@@ -26,7 +27,20 @@ export function AnalysisResult({ data }: Props) {
         </div>
       )}
 
-      <header className="flex flex-col gap-2 border-b border-ink/10 pb-6">
+      <header className="flex flex-col gap-3 border-b border-ink/10 pb-6">
+        {article.image_url && (
+          <a href={article.url} target="_blank" rel="noopener noreferrer" className="block">
+            <ArticleThumbnail
+              imageUrl={article.image_url}
+              siteName={article.site_name}
+              width={900}
+              className="aspect-[16/9] w-full overflow-hidden rounded-xl bg-ink/5"
+            />
+            <div className="mt-1 text-xs text-ink/50">
+              Foto: {article.site_name || new URL(article.url).hostname}
+            </div>
+          </a>
+        )}
         <div className="text-xs font-semibold uppercase tracking-wider text-accent">
           {article.site_name || new URL(article.url).hostname}
         </div>

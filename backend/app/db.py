@@ -49,6 +49,7 @@ _INCREMENTAL_COLUMNS: dict[str, dict[str, str]] = {
     "articles": {
         "story_id": "INTEGER REFERENCES stories(id)",
         "embedding_json": "TEXT",
+        "image_url": "VARCHAR(1024)",
     },
     "stories": {
         "alerted_at": "DATETIME",

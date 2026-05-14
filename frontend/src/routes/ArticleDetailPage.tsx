@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { AnalysisResult } from '../components/AnalysisResult';
 import { PortalAxisPills } from '../components/BlindspotBar';
 import { FavoriteButton } from '../components/FavoriteButton';
@@ -36,17 +36,6 @@ export function ArticleDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {data.story_id !== null && (
-        <div className="flex justify-end">
-          <Link
-            to={`/historias/${data.story_id}`}
-            className="text-sm text-accent hover:underline"
-          >
-            Ver historia agrupada →
-          </Link>
-        </div>
-      )}
-
       <section className="flex flex-wrap items-center gap-3 rounded-xl border border-ink/10 bg-white px-4 py-3">
         <span className="font-semibold">{data.portal.name}</span>
         <PortalAxisPills
@@ -54,14 +43,6 @@ export function ArticleDetailPage() {
           peronismBucket={data.portal.peronism_bucket}
         />
         {user && <FavoriteButton articleId={Number(id)} initial={data.is_favorite} />}
-        <a
-          href={data.article.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-auto text-sm text-accent hover:underline"
-        >
-          original ↗
-        </a>
       </section>
 
       {data.analysis ? (

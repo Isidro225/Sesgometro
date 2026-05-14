@@ -14,6 +14,10 @@ import type {
 const TOKEN_KEY = 'sesgometro.token';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
+export function thumbUrl(originalUrl: string, width: 200 | 400 | 600 | 900 = 400): string {
+  return `${API_BASE_URL}/api/img?u=${encodeURIComponent(originalUrl)}&w=${width}`;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {

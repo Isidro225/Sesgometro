@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, getPortal, refreshPortal } from '../lib/api';
+import { ArticleThumbnail } from '../components/ArticleThumbnail';
 import { AxisBar } from '../components/AxisBar';
 import { OrientationBadge } from '../components/OrientationBadge';
 import { PortalAxisPills } from '../components/BlindspotBar';
@@ -150,54 +151,66 @@ export function PortalDetailPage() {
             {data.articles.map((article) => (
               <li
                 key={article.id}
-                className="flex flex-col gap-2 rounded-xl border border-ink/10 bg-white p-5 transition hover:border-ink/30"
+                className="flex flex-col gap-3 rounded-xl border border-ink/10 bg-white p-5 transition hover:border-ink/30 sm:flex-row"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <Link
-                    to={`/articulos/${article.id}`}
-                    className="font-serif text-lg font-semibold leading-snug hover:text-accent"
-                  >
-                    {article.title || '(Artículo sin titular)'}
+                {article.image_url && (
+                  <Link to={`/articulos/${article.id}`} className="block sm:w-40 sm:flex-shrink-0">
+                    <ArticleThumbnail
+                      imageUrl={article.image_url}
+                      siteName={data.name}
+                      width={400}
+                      className="aspect-[16/9] w-full overflow-hidden rounded-lg bg-ink/5"
+                    />
                   </Link>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <FavoriteButton articleId={article.id} initial={article.is_favorite} />
-                    {article.analysis && (
-                      <>
-                        <OrientationBadge
-                          score={article.analysis.statism_liberalism.score}
-                          size="sm"
-                          axis="statism_liberalism"
-                        />
-                        <OrientationBadge
-                          score={article.analysis.peronism_antiperonism.score}
-                          size="sm"
-                          axis="peronism_antiperonism"
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-                {article.analysis && (
-                  <p className="text-sm leading-relaxed text-ink/70">
-                    <strong className="text-ink">{article.analysis.overall_label}</strong> ·{' '}
-                    {article.analysis.neutral_summary.slice(0, 200)}
-                    {article.analysis.neutral_summary.length > 200 && '…'}
-                  </p>
                 )}
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/50">
-                  {article.author && <span>{article.author}</span>}
-                  {article.word_count && <span>{article.word_count} palabras</span>}
-                  {article.analysis?.is_mock && (
-                    <span className="text-amber-700">mock</span>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <Link
+                      to={`/articulos/${article.id}`}
+                      className="font-serif text-lg font-semibold leading-snug hover:text-accent"
+                    >
+                      {article.title || '(Artículo sin titular)'}
+                    </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <FavoriteButton articleId={article.id} initial={article.is_favorite} />
+                      {article.analysis && (
+                        <>
+                          <OrientationBadge
+                            score={article.analysis.statism_liberalism.score}
+                            size="sm"
+                            axis="statism_liberalism"
+                          />
+                          <OrientationBadge
+                            score={article.analysis.peronism_antiperonism.score}
+                            size="sm"
+                            axis="peronism_antiperonism"
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {article.analysis && (
+                    <p className="text-sm leading-relaxed text-ink/70">
+                      <strong className="text-ink">{article.analysis.overall_label}</strong> ·{' '}
+                      {article.analysis.neutral_summary.slice(0, 200)}
+                      {article.analysis.neutral_summary.length > 200 && '…'}
+                    </p>
                   )}
-                  <a
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:underline"
-                  >
-                    original ↗
-                  </a>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/50">
+                    {article.author && <span>{article.author}</span>}
+                    {article.word_count && <span>{article.word_count} palabras</span>}
+                    {article.analysis?.is_mock && (
+                      <span className="text-amber-700">mock</span>
+                    )}
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline"
+                    >
+                      original ↗
+                    </a>
+                  </div>
                 </div>
               </li>
             ))}

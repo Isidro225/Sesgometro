@@ -31,6 +31,7 @@ export type ScrapedArticle = {
   published_at: string | null;
   text: string;
   word_count: number;
+  image_url?: string | null;
 };
 
 export type BiasBucket = 'izq' | 'centro' | 'der';
@@ -71,6 +72,7 @@ export type ArticleSummary = {
   discovered_at: string;
   analysis: Analysis | null;
   is_favorite: boolean;
+  image_url?: string | null;
 };
 
 export type PortalDetail = PortalSummary & {
@@ -94,6 +96,7 @@ export type ArticleFeedItem = {
   emotional_load: number | null;
   is_mock: boolean;
   story_id: number | null;
+  image_url?: string | null;
 };
 
 export type ArticlePortalRef = {

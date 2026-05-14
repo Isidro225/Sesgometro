@@ -87,6 +87,10 @@ def extract_article(html: str, url: str) -> ScrapedArticle:
         except ValueError:
             published_at = None
 
+    image_url = data.get("image")
+    if image_url and not image_url.startswith(("http://", "https://")):
+        image_url = None
+
     return ScrapedArticle(
         url=url,
         title=data.get("title"),
@@ -95,6 +99,7 @@ def extract_article(html: str, url: str) -> ScrapedArticle:
         published_at=published_at,
         text=text,
         word_count=len(text.split()),
+        image_url=image_url,
     )
 
 

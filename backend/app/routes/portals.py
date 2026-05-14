@@ -178,6 +178,7 @@ def get_portal(
             discovered_at=a.discovered_at,
             analysis=_to_analysis_schema(a),
             is_favorite=a.id in favorites,
+            image_url=a.image_url,
         )
         for a in articles
     ]

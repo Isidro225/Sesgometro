@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.categories import CATEGORY_SLUGS, classify as classify_category
@@ -30,10 +30,12 @@ def list_recent_articles(
         Query(description=f"Filtrar por categoría. Slugs: {', '.join(CATEGORY_SLUGS)}"),
     ] = None,
 ) -> list[ArticleFeedItem]:
-    """Feed reciente de artículos analizados, ordenado por fecha de publicación
-    (la hora a la que salió la nota en el medio). Si la nota no trae
-    `published_at` legible — el scraper no pudo parsearlo — usamos
-    `discovered_at` como fallback para no perderla del feed.
+    """Feed reciente de artículos analizados, ordenado por `discovered_at` (cuándo
+    los vimos por primera vez). Antes ordenábamos por `published_at` del medio,
+    pero notas con fecha de publicación vieja (recicladas, columnas, fechas mal
+    parseadas) hundían a las recién scrapeadas. El criterio "lo último que vimos"
+    es lo que hacen los agregadores tipo Ground News / Google News: predecible,
+    las nuevas siempre suben arriba.
 
     Sólo devuelve artículos con `analysis` cargado para que cada card del feed
     pueda renderizar las chips de eje. Para el home y vistas tipo portal de
@@ -42,13 +44,12 @@ def list_recent_articles(
     if categoria is not None and categoria not in CATEGORY_SLUGS:
         raise HTTPException(400, f"Categoría inválida: {categoria!r}. Permitidas: {CATEGORY_SLUGS}")
 
-    sort_key = func.coalesce(Article.published_at, Article.discovered_at)
     needs_wider_fetch = categoria is not None
     stmt = (
         select(Article)
         .join(Analysis, Analysis.article_id == Article.id)
         .options(selectinload(Article.portal), selectinload(Article.analysis))
-        .order_by(desc(sort_key))
+        .order_by(desc(Article.discovered_at))
         .limit(300 if needs_wider_fetch else limit)
     )
 
@@ -81,6 +82,7 @@ def list_recent_articles(
                 emotional_load=analysis.emotional_load,
                 is_mock=analysis.is_mock,
                 story_id=art.story_id,
+                image_url=art.image_url,
             )
         )
         if len(feed) >= limit:
@@ -122,6 +124,7 @@ def get_article(
         published_at=article.published_at,
         text="",  # no exponemos el body por la nota legal de scraping
         word_count=article.word_count or 0,
+        image_url=article.image_url,
     )
 
     return ArticleDetail(

@@ -43,6 +43,7 @@ class Article(Base):
     discovered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     story_id: Mapped[int | None] = mapped_column(ForeignKey("stories.id"), nullable=True, index=True)
     embedding_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     portal: Mapped[Portal] = relationship(back_populates="articles")
     analysis: Mapped[Analysis | None] = relationship(

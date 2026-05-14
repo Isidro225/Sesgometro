@@ -12,6 +12,7 @@ class ScrapedArticle(BaseModel):
     published_at: datetime | None
     text: str
     word_count: int
+    image_url: str | None = None
 
 
 class AxisScore(BaseModel):
@@ -82,6 +83,7 @@ class ArticleSummary(BaseModel):
     discovered_at: datetime
     analysis: Analysis | None
     is_favorite: bool = False
+    image_url: str | None = None
 
 
 class PortalDetail(PortalSummary):
@@ -107,6 +109,7 @@ class ArticleFeedItem(BaseModel):
     emotional_load: float | None
     is_mock: bool
     story_id: int | None = None
+    image_url: str | None = None
 
 
 class ArticlePortalRef(BaseModel):

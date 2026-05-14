@@ -87,6 +87,7 @@ def _persist_article_and_analysis(
             author=scraped_meta.get("author"),
             published_at=scraped_meta.get("published_at"),
             word_count=scraped_meta.get("word_count"),
+            image_url=scraped_meta.get("image_url"),
         )
         session.add(article)
         session.flush()
@@ -95,6 +96,7 @@ def _persist_article_and_analysis(
         article.author = scraped_meta.get("author") or article.author
         article.published_at = scraped_meta.get("published_at") or article.published_at
         article.word_count = scraped_meta.get("word_count") or article.word_count
+        article.image_url = scraped_meta.get("image_url") or article.image_url
 
     framing_payload = [f.model_dump() for f in analysis.framing]
 
@@ -211,6 +213,7 @@ async def _process_article(seed: PortalSeed, portal_id: int, article_url: str) -
                     "author": article_data.author,
                     "published_at": article_data.published_at,
                     "word_count": article_data.word_count,
+                    "image_url": article_data.image_url,
                 },
                 article_data.text,
             )

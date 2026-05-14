@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db import SessionLocal, init_db
 from app.refresh import backfill_embeddings_and_stories, refresh_all, seed_portals
-from app.routes import articles, auth, me, portals, stories
+from app.routes import articles, auth, images, me, portals, stories
 from app.scheduler import shutdown_scheduler, start_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s :: %(message)s")
@@ -58,6 +58,7 @@ app.include_router(articles.router)
 app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(stories.router)
+app.include_router(images.router)
 
 
 @app.get("/health")
