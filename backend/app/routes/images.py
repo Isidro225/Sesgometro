@@ -87,10 +87,20 @@ async def proxy_image(
     if cache_file.exists():
         return FileResponse(cache_file, media_type="image/webp", headers=CACHE_HEADERS)
 
+    # impersonate="chrome" da fingerprint TLS de Chrome (necesario para CDNs
+    # tras Cloudflare). Pero el Accept default de Chrome incluye image/avif,
+    # y Arc Publishing (Infobae, La Nación, TN, Cronista) sirve AVIF cuando lo
+    # ve — formato que Pillow no decodifica sin pillow-avif-plugin. Pisamos
+    # Accept para que el CDN negocie a webp/jpeg/png.
+    headers = {
+        "Accept": "image/webp,image/jpeg,image/png,image/gif,*/*;q=0.8",
+        "Accept-Language": "es-AR,es;q=0.9,en;q=0.5",
+    }
     try:
         async with AsyncSession(impersonate="chrome") as client:
             response = await client.get(
                 u,
+                headers=headers,
                 timeout=settings.scraper_timeout_seconds,
                 allow_redirects=True,
             )

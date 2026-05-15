@@ -146,6 +146,19 @@ PORTAL_SEEDS: list[PortalSeed] = [
         link_pattern=r"^https?://www\.lavoz\.com\.ar/[a-z0-9-/]+/[a-z0-9-]+_0_[A-Za-z0-9]+\.html$",
     ),
     PortalSeed(
+        slug="el-destape",
+        name="El Destape",
+        homepage_url="https://www.eldestapeweb.com/",
+        description="Diario digital kirchnerista. Línea editorial peronista militante; opositora dura al gobierno LLA.",
+        bias_bucket="izq",
+        economic_bucket="estatista",
+        peronism_bucket="peronista",
+        # URLs reales terminan en un ID numérico largo (11+ dígitos, suele
+        # incluir fecha embebida): /seccion/slug-titulo-2026514203715.
+        # Secciones (/politica, /economia) o autores no tienen ese sufijo.
+        link_pattern=r"^https?://www\.eldestapeweb\.com/[a-z-]+/[a-z0-9-]+-\d{11,}/?$",
+    ),
+    PortalSeed(
         slug="izquierda-diario",
         name="La Izquierda Diario",
         homepage_url="https://www.laizquierdadiario.com/",
