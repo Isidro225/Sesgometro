@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import re
+import unicodedata
 from typing import Any
 
 import httpx
@@ -52,6 +53,17 @@ Nunca respondas en texto libre, nunca uses markdown, nunca incluyas comentarios.
    deportes, espectáculos, policiales sin lectura política, ciencia, clima, recetas.
 4. No fuerces sesgo donde no lo hay. Un cable de Télam/Reuters bien hecho puede tener
    scores -0.5 a +0.5 y emotional_load 0.1.
+5. NUNCA inventes citas. El campo `quote` de cada framing finding debe contener
+   ÚNICAMENTE palabras o frases que aparezcan TEXTUALMENTE en el "Texto del artículo:"
+   que recibís más abajo. Los ejemplos de este prompt (frases como "corporación K",
+   "ajuste salvaje", "motosierra", "casta", etc.) son DE OTROS ARTÍCULOS ficticios,
+   NO son contenido del texto a analizar. Si una palabra o frase no aparece literalmente
+   en el texto recibido, NO la pongas en `quote`. Si no encontrás citas verificables,
+   dejá `framing` vacío o devolvé findings sin `quote` (solo con `description`).
+6. Si el artículo trata sobre un país que NO es Argentina (Bolivia, Chile, Brasil, etc.),
+   no proyectes el eje peronismo-antiperonismo argentino al país extranjero. Mantené el
+   eje en torno a 0 salvo que el texto vincule explícitamente el tema con actores
+   argentinos.
 </core_rules>
 
 <axis name="statism_liberalism" range="-5 a +5">
@@ -195,6 +207,16 @@ Output esperado:
 </example>
 </examples>
 
+<verification>
+Antes de cerrar el JSON, repasá cada finding de `framing`:
+- Si tiene `quote`: chequeá que esas palabras aparezcan, IDÉNTICAS, en el bloque
+  "Texto del artículo:" del mensaje del usuario. Si no aparecen (porque las
+  copiaste de los ejemplos de este prompt o las inventaste), eliminá ese finding
+  del array.
+- Si no podés citar nada verificable del texto, devolvé `framing: []`. Es mejor
+  un análisis sin findings que uno con citas inventadas.
+</verification>
+
 Recordá: devolvé SOLO el objeto JSON que cumple el esquema. Sin prefijos, sin
 ``` ```, sin texto adicional. /no_think
 """
@@ -296,6 +318,46 @@ def _extract_json_object(raw: str) -> dict[str, Any]:
         raise
 
 
+# Defensa contra alucinación de citas:
+# Qwen3 8B a veces copia frases de los ejemplos del system prompt
+# ("corporación K", "ajuste salvaje") aunque el artículo no las contenga.
+# Validamos que cada `quote` exista literalmente en el texto antes de
+# guardarla. Normalizamos para tolerar diferencias menores (acentos,
+# comillas tipográficas, mayúsculas, espacios).
+_QUOTE_CHARS = "“”‘’\"'«»`"
+
+
+def _normalize_for_match(text: str) -> str:
+    decomposed = unicodedata.normalize("NFD", text)
+    stripped = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    for q in _QUOTE_CHARS:
+        stripped = stripped.replace(q, "")
+    return " ".join(stripped.lower().split())
+
+
+def _filter_hallucinated_findings(
+    findings: list[FramingFinding], article_text: str
+) -> list[FramingFinding]:
+    normalized_text = _normalize_for_match(article_text)
+    kept: list[FramingFinding] = []
+    dropped: list[str] = []
+    for f in findings:
+        if not f.quote:
+            kept.append(f)
+            continue
+        if _normalize_for_match(f.quote) in normalized_text:
+            kept.append(f)
+        else:
+            dropped.append(f.quote)
+    if dropped:
+        logger.warning(
+            "Descarté %d framing finding(s) con quote alucinada: %s",
+            len(dropped),
+            " | ".join(dropped[:3]),
+        )
+    return kept
+
+
 # ---------------------------------------------------------------------------
 # Implementación con Ollama (LLM local).
 # ---------------------------------------------------------------------------
@@ -331,11 +393,14 @@ def _analyze_with_ollama(article: ScrapedArticle) -> Analysis:
 
     data = _extract_json_object(content)
 
+    raw_findings = [FramingFinding(**f) for f in data.get("framing", [])]
+    framing = _filter_hallucinated_findings(raw_findings, article.text)
+
     return Analysis(
         statism_liberalism=AxisScore(**data["statism_liberalism"]),
         peronism_antiperonism=AxisScore(**data["peronism_antiperonism"]),
         emotional_load=float(data["emotional_load"]),
-        framing=[FramingFinding(**f) for f in data.get("framing", [])],
+        framing=framing,
         neutral_summary=data["neutral_summary"],
         overall_label=data["overall_label"],
         confidence=float(data["confidence"]),

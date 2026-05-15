@@ -27,13 +27,18 @@ export function AnalysisResult({ data }: Props) {
         </div>
       )}
 
-      <header className="flex flex-col gap-3 border-b border-ink/10 pb-6">
+      <header className="flex flex-col gap-4 border-b border-ink/10 pb-6 sm:flex-row-reverse sm:items-start sm:gap-6">
         {article.image_url && (
-          <a href={article.url} target="_blank" rel="noopener noreferrer" className="block">
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full sm:w-2/5 sm:flex-shrink-0"
+          >
             <ArticleThumbnail
               imageUrl={article.image_url}
               siteName={article.site_name}
-              width={900}
+              width={600}
               className="aspect-[16/9] w-full overflow-hidden rounded-xl bg-ink/5"
             />
             <div className="mt-1 text-xs text-ink/50">
@@ -41,61 +46,62 @@ export function AnalysisResult({ data }: Props) {
             </div>
           </a>
         )}
-        <div className="text-xs font-semibold uppercase tracking-wider text-accent">
-          {article.site_name || new URL(article.url).hostname}
-        </div>
-        <h2 className="font-serif text-2xl font-bold leading-snug sm:text-3xl">
-          {article.title || '(Artículo sin titular)'}
-        </h2>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink/60">
-          {article.author && <span>{article.author}</span>}
-          {article.published_at && <span>{new Date(article.published_at).toLocaleDateString('es-ES')}</span>}
-          <span>{article.word_count} palabras</span>
-          <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-            ver original ↗
-          </a>
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-1">
+          <div className="text-xs font-semibold uppercase tracking-wider text-accent">
+            {article.site_name || new URL(article.url).hostname}
+          </div>
+          <h2 className="font-serif text-2xl font-bold leading-snug sm:text-3xl">
+            {article.title || '(Artículo sin titular)'}
+          </h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink/60">
+            {article.author && <span>{article.author}</span>}
+            {article.published_at && <span>{new Date(article.published_at).toLocaleDateString('es-ES')}</span>}
+            <span>{article.word_count} palabras</span>
+            <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+              ver original ↗
+            </a>
+          </div>
+          <div className="mt-2 flex flex-col gap-2 border-t border-ink/10 pt-4">
+            <div className="text-xs font-semibold uppercase tracking-wider text-ink/50">Veredicto</div>
+            <p className="text-xl font-semibold leading-tight sm:text-2xl">{analysis.overall_label}</p>
+            <div className="text-sm text-ink/60">
+              Confianza: <strong className="text-ink">{(analysis.confidence * 100).toFixed(0)}%</strong>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-ink/10 pt-4">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink/50">Estatismo – Liberalismo</h3>
+              <AxisBar
+                score={analysis.statism_liberalism.score}
+                leftLabel="Estatismo"
+                rightLabel="Liberalismo"
+                tone="economic"
+              />
+              <p className="text-sm font-medium">
+                {classifyAxis('statism_liberalism', analysis.statism_liberalism.score).label}
+              </p>
+              <p className="text-sm leading-relaxed text-ink/70">{analysis.statism_liberalism.justification}</p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink/50">Peronismo – Antiperonismo</h3>
+              <AxisBar
+                score={analysis.peronism_antiperonism.score}
+                leftLabel="Peronismo"
+                rightLabel="Antiperonismo"
+                tone="peronism"
+              />
+              <p className="text-sm font-medium">
+                {classifyAxis('peronism_antiperonism', analysis.peronism_antiperonism.score).label}
+              </p>
+              <p className="text-sm leading-relaxed text-ink/70">
+                {analysis.peronism_antiperonism.justification}
+              </p>
+            </div>
+          </div>
         </div>
       </header>
-
-      <section className="flex flex-col gap-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-ink/50">Veredicto</div>
-        <p className="text-2xl font-semibold leading-tight">{analysis.overall_label}</p>
-        <div className="text-sm text-ink/60">
-          Confianza: <strong className="text-ink">{(analysis.confidence * 100).toFixed(0)}%</strong>
-        </div>
-      </section>
-
-      <section className="grid gap-6 sm:grid-cols-2">
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-ink/50">Estatismo – Liberalismo</h3>
-          <AxisBar
-            score={analysis.statism_liberalism.score}
-            leftLabel="Estatismo"
-            rightLabel="Liberalismo"
-            tone="economic"
-          />
-          <p className="text-base font-medium">
-            {classifyAxis('statism_liberalism', analysis.statism_liberalism.score).label}
-          </p>
-          <p className="text-sm leading-relaxed text-ink/70">{analysis.statism_liberalism.justification}</p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-ink/50">Peronismo – Antiperonismo</h3>
-          <AxisBar
-            score={analysis.peronism_antiperonism.score}
-            leftLabel="Peronismo"
-            rightLabel="Antiperonismo"
-            tone="peronism"
-          />
-          <p className="text-base font-medium">
-            {classifyAxis('peronism_antiperonism', analysis.peronism_antiperonism.score).label}
-          </p>
-          <p className="text-sm leading-relaxed text-ink/70">
-            {analysis.peronism_antiperonism.justification}
-          </p>
-        </div>
-      </section>
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-ink/50">Carga emocional</h3>
