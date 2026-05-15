@@ -69,6 +69,7 @@ export function PortalDetailPage() {
               <PortalAxisPills
                 economicBucket={data.economic_bucket}
                 peronismBucket={data.peronism_bucket}
+                culturalBucket={data.cultural_bucket}
               />
             </div>
             {data.description && <p className="mt-1 text-ink/60">{data.description}</p>}
@@ -97,7 +98,7 @@ export function PortalDetailPage() {
           o pulsa <strong>Refrescar ahora</strong> arriba.
         </div>
       ) : (
-        <section className="grid gap-6 rounded-2xl border border-ink/10 bg-white p-6 lg:grid-cols-3">
+        <section className="grid gap-6 rounded-2xl border border-ink/10 bg-white p-6 lg:grid-cols-2 xl:grid-cols-4">
           <div className="flex flex-col gap-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-ink/50">
               Estatismo / liberalismo · {aggregate.analyzed_count} artículos
@@ -128,6 +129,22 @@ export function PortalDetailPage() {
               score={aggregate.avg_peronism_antiperonism}
               size="md"
               axis="peronism_antiperonism"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-ink/50">
+              Progresismo / conservadurismo
+            </div>
+            <AxisBar
+              score={aggregate.avg_progressivism_conservatism}
+              leftLabel="Progresismo"
+              rightLabel="Conservadurismo"
+              tone="cultural"
+            />
+            <OrientationBadge
+              score={aggregate.avg_progressivism_conservatism}
+              size="md"
+              axis="progressivism_conservatism"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -185,6 +202,13 @@ export function PortalDetailPage() {
                             size="sm"
                             axis="peronism_antiperonism"
                           />
+                          {article.analysis.progressivism_conservatism && (
+                            <OrientationBadge
+                              score={article.analysis.progressivism_conservatism.score}
+                              size="sm"
+                              axis="progressivism_conservatism"
+                            />
+                          )}
                         </>
                       )}
                     </div>

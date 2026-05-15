@@ -11,7 +11,11 @@ from app.categories import CATEGORY_SLUGS, classify as classify_category
 from app.db import get_session
 from app.models import Article, Portal, Story
 from app.refresh import purge_non_political_articles, recluster_stories as run_recluster_stories
-from app.routes.portals import _peronism_antiperonism_axis, _statism_liberalism_axis
+from app.routes.portals import (
+    _peronism_antiperonism_axis,
+    _progressivism_conservatism_axis,
+    _statism_liberalism_axis,
+)
 from app.schemas import AxisCoverage, BucketCoverage, StoryArticle, StoryDetail, StorySummary
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
@@ -20,10 +24,12 @@ ALL_BUCKETS = ("izq", "centro", "der")
 AXIS_BUCKETS = {
     "statism_liberalism": ("estatista", "centro", "liberal"),
     "peronism_antiperonism": ("peronista", "centro", "antiperonista"),
+    "progressivism_conservatism": ("progresista", "centro", "conservador"),
 }
 AXIS_PORTAL_ATTR = {
     "statism_liberalism": "economic_bucket",
     "peronism_antiperonism": "peronism_bucket",
+    "progressivism_conservatism": "cultural_bucket",
 }
 MIN_ARTICLES_FOR_BLINDSPOT = 3
 
@@ -80,6 +86,7 @@ def _story_articles(story: Story) -> list[StoryArticle]:
         analysis = a.analysis
         statism = _statism_liberalism_axis(analysis) if analysis else None
         peronism = _peronism_antiperonism_axis(analysis) if analysis else None
+        cultural = _progressivism_conservatism_axis(analysis) if analysis else None
         out.append(
             StoryArticle(
                 article_id=a.id,
@@ -88,12 +95,14 @@ def _story_articles(story: Story) -> list[StoryArticle]:
                 bias_bucket=portal.bias_bucket if portal else "centro",
                 economic_bucket=portal.economic_bucket if portal else "centro",
                 peronism_bucket=portal.peronism_bucket if portal else "centro",
+                cultural_bucket=portal.cultural_bucket if portal else "centro",
                 title=a.title,
                 url=a.url,
                 published_at=a.published_at,
                 overall_label=analysis.overall_label if analysis else None,
                 statism_liberalism_score=statism.score if statism else None,
                 peronism_antiperonism_score=peronism.score if peronism else None,
+                progressivism_conservatism_score=cultural.score if cultural else None,
                 left_right_score=peronism.score if peronism else None,
             )
         )

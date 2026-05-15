@@ -34,6 +34,9 @@ class Analysis(BaseModel):
 
     statism_liberalism: AxisScore
     peronism_antiperonism: AxisScore
+    # Opcional porque análisis viejos (anteriores a 2026-05-15) no lo traen.
+    # Para análisis nuevos lo seteamos siempre.
+    progressivism_conservatism: AxisScore | None = None
     emotional_load: float = Field(..., ge=0, le=1)
     framing: list[FramingFinding]
     neutral_summary: str
@@ -53,6 +56,7 @@ class PortalAggregate(BaseModel):
 
     avg_statism_liberalism: float | None
     avg_peronism_antiperonism: float | None
+    avg_progressivism_conservatism: float | None = None
     avg_emotional_load: float | None
     article_count: int
     analyzed_count: int
@@ -69,6 +73,9 @@ class PortalSummary(BaseModel):
     bias_bucket: str
     economic_bucket: str
     peronism_bucket: str
+    # Derivado de avg_progressivism_conservatism sobre los artículos del portal,
+    # no hardcodeado en el seed. Se recalcula en cada refresh.
+    cultural_bucket: str = "centro"
     last_refreshed_at: datetime | None
     aggregate: PortalAggregate
 
@@ -103,9 +110,11 @@ class ArticleFeedItem(BaseModel):
     bias_bucket: str
     economic_bucket: str
     peronism_bucket: str
+    cultural_bucket: str = "centro"
     overall_label: str | None
     statism_liberalism_score: float | None
     peronism_antiperonism_score: float | None
+    progressivism_conservatism_score: float | None = None
     emotional_load: float | None
     is_mock: bool
     story_id: int | None = None
@@ -118,6 +127,7 @@ class ArticlePortalRef(BaseModel):
     bias_bucket: str
     economic_bucket: str
     peronism_bucket: str
+    cultural_bucket: str = "centro"
 
 
 class ArticleDetail(BaseModel):
@@ -176,7 +186,11 @@ class BucketCoverage(BaseModel):
 
 
 class AxisCoverage(BaseModel):
-    axis: Literal["statism_liberalism", "peronism_antiperonism"]
+    axis: Literal[
+        "statism_liberalism",
+        "peronism_antiperonism",
+        "progressivism_conservatism",
+    ]
     coverage: list[BucketCoverage]
     blindspots: list[str]
 
@@ -188,12 +202,14 @@ class StoryArticle(BaseModel):
     bias_bucket: str
     economic_bucket: str
     peronism_bucket: str
+    cultural_bucket: str = "centro"
     title: str | None
     url: str
     published_at: datetime | None
     overall_label: str | None
     statism_liberalism_score: float | None
     peronism_antiperonism_score: float | None
+    progressivism_conservatism_score: float | None = None
     # Alias legacy para clientes viejos.
     left_right_score: float | None = None
 

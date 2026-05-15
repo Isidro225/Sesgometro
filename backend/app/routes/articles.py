@@ -12,6 +12,7 @@ from app.db import get_session
 from app.models import Analysis, Article, User, UserFavorite
 from app.routes.portals import (
     _peronism_antiperonism_axis,
+    _progressivism_conservatism_axis,
     _statism_liberalism_axis,
     _to_analysis_schema,
 )
@@ -64,6 +65,7 @@ def list_recent_articles(
             continue
         statism = _statism_liberalism_axis(analysis)
         peronism = _peronism_antiperonism_axis(analysis)
+        cultural = _progressivism_conservatism_axis(analysis)
         feed.append(
             ArticleFeedItem(
                 id=art.id,
@@ -76,9 +78,11 @@ def list_recent_articles(
                 bias_bucket=portal.bias_bucket,
                 economic_bucket=portal.economic_bucket,
                 peronism_bucket=portal.peronism_bucket,
+                cultural_bucket=portal.cultural_bucket,
                 overall_label=analysis.overall_label,
                 statism_liberalism_score=statism.score,
                 peronism_antiperonism_score=peronism.score,
+                progressivism_conservatism_score=cultural.score if cultural else None,
                 emotional_load=analysis.emotional_load,
                 is_mock=analysis.is_mock,
                 story_id=art.story_id,
@@ -137,6 +141,7 @@ def get_article(
             bias_bucket=article.portal.bias_bucket,
             economic_bucket=article.portal.economic_bucket,
             peronism_bucket=article.portal.peronism_bucket,
+            cultural_bucket=article.portal.cultural_bucket,
         ),
         story_id=article.story_id,
     )

@@ -7,6 +7,7 @@ import type { AlertItem, AxisBucket, AxisCoverage, AxisId } from '../types';
 const AXIS_LABEL: Record<AxisId, string> = {
   statism_liberalism: 'estatismo/liberalismo',
   peronism_antiperonism: 'peronismo/antiperonismo',
+  progressivism_conservatism: 'progresismo/conservadurismo',
 };
 
 const BUCKET_LABEL: Record<string, string> = {
@@ -14,6 +15,8 @@ const BUCKET_LABEL: Record<string, string> = {
   liberal: 'liberalismo',
   peronista: 'peronismo',
   antiperonista: 'antiperonismo',
+  progresista: 'progresismo',
+  conservador: 'conservadurismo',
   centro: 'centro',
   izq: 'izquierda',
   der: 'derecha',

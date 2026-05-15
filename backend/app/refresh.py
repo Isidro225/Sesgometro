@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 from anyio import to_thread
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app import alerts, analyzer, clustering, discovery, embeddings, politics_filter, scraper
@@ -68,6 +68,43 @@ def seed_portals(session: Session) -> None:
     session.commit()
 
 
+def _cultural_bucket_from_avg(avg: float | None) -> str:
+    """Mapea promedio del eje progresismo-conservadurismo a bucket coarse.
+
+    Mismo umbral ±1 que el resto de los ejes para clasificar bucket vs centro.
+    """
+    if avg is None:
+        return "centro"
+    if avg <= -1:
+        return "progresista"
+    if avg >= 1:
+        return "conservador"
+    return "centro"
+
+
+def recompute_cultural_bucket(session: Session, portal_id: int) -> str:
+    """Recalcula `cultural_bucket` del portal a partir del promedio de
+    `progressivism_conservatism_score` sobre sus análisis no nulos.
+
+    Devuelve el bucket nuevo (también lo persiste). Si el portal todavía no
+    tiene análisis culturales (todo NULL), deja 'centro'.
+    """
+    portal = session.get(Portal, portal_id)
+    if portal is None:
+        return "centro"
+    avg = session.scalar(
+        select(func.avg(AnalysisModel.progressivism_conservatism_score))
+        .join(Article, Article.id == AnalysisModel.article_id)
+        .where(
+            Article.portal_id == portal_id,
+            AnalysisModel.progressivism_conservatism_score.is_not(None),
+        )
+    )
+    bucket = _cultural_bucket_from_avg(avg)
+    portal.cultural_bucket = bucket
+    return bucket
+
+
 def _persist_article_and_analysis(
     session: Session,
     portal: Portal,
@@ -105,6 +142,10 @@ def _persist_article_and_analysis(
     # rellenamos con "" para no chocar contra el constraint de la BD.
     stat_label = analysis.statism_liberalism.label
     peron_label = analysis.peronism_antiperonism.label
+    cultural = analysis.progressivism_conservatism
+    cultural_score = cultural.score if cultural else None
+    cultural_label = cultural.label if cultural else None
+    cultural_just = cultural.justification if cultural else None
 
     if article.analysis is None:
         session.add(
@@ -122,6 +163,9 @@ def _persist_article_and_analysis(
                 peronism_antiperonism_score=analysis.peronism_antiperonism.score,
                 peronism_antiperonism_label=peron_label,
                 peronism_antiperonism_justification=analysis.peronism_antiperonism.justification,
+                progressivism_conservatism_score=cultural_score,
+                progressivism_conservatism_label=cultural_label,
+                progressivism_conservatism_justification=cultural_just,
                 emotional_load=analysis.emotional_load,
                 neutral_summary=analysis.neutral_summary,
                 overall_label=analysis.overall_label,
@@ -145,6 +189,9 @@ def _persist_article_and_analysis(
         a.peronism_antiperonism_score = analysis.peronism_antiperonism.score
         a.peronism_antiperonism_label = peron_label
         a.peronism_antiperonism_justification = analysis.peronism_antiperonism.justification
+        a.progressivism_conservatism_score = cultural_score
+        a.progressivism_conservatism_label = cultural_label
+        a.progressivism_conservatism_justification = cultural_just
         a.emotional_load = analysis.emotional_load
         a.neutral_summary = analysis.neutral_summary
         a.overall_label = analysis.overall_label
@@ -253,6 +300,7 @@ async def refresh_portal(seed: PortalSeed) -> int:
             p = session.get(Portal, portal_id)
             if p:
                 p.last_refreshed_at = datetime.utcnow()
+                recompute_cultural_bucket(session, portal_id)
                 session.commit()
 
     await to_thread.run_sync(_stamp)

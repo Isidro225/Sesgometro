@@ -99,6 +99,33 @@ export function AnalysisResult({ data }: Props) {
                 {analysis.peronism_antiperonism.justification}
               </p>
             </div>
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink/50">Progresismo – Conservadurismo</h3>
+              <AxisBar
+                score={analysis.progressivism_conservatism?.score ?? null}
+                leftLabel="Progresismo"
+                rightLabel="Conservadurismo"
+                tone="cultural"
+              />
+              {analysis.progressivism_conservatism ? (
+                <>
+                  <p className="text-sm font-medium">
+                    {classifyAxis(
+                      'progressivism_conservatism',
+                      analysis.progressivism_conservatism.score,
+                    ).label}
+                  </p>
+                  <p className="text-sm leading-relaxed text-ink/70">
+                    {analysis.progressivism_conservatism.justification}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm italic text-ink/50">
+                  Eje no evaluado (análisis previo a la incorporación del eje cultural).
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </header>

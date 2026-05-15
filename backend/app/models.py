@@ -19,6 +19,9 @@ class Portal(Base):
     bias_bucket: Mapped[str] = mapped_column(String(16), default="centro")
     economic_bucket: Mapped[str] = mapped_column(String(16), default="centro")
     peronism_bucket: Mapped[str] = mapped_column(String(16), default="centro")
+    # Derivado del promedio de scores culturales de los artículos del portal;
+    # se recomputa después de cada refresh. No viene del seed.
+    cultural_bucket: Mapped[str] = mapped_column(String(16), default="centro")
     last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
@@ -69,6 +72,9 @@ class Analysis(Base):
     peronism_antiperonism_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     peronism_antiperonism_label: Mapped[str | None] = mapped_column(String(128), nullable=True)
     peronism_antiperonism_justification: Mapped[str | None] = mapped_column(Text, nullable=True)
+    progressivism_conservatism_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    progressivism_conservatism_label: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    progressivism_conservatism_justification: Mapped[str | None] = mapped_column(Text, nullable=True)
     emotional_load: Mapped[float] = mapped_column(Float)
     neutral_summary: Mapped[str] = mapped_column(Text)
     overall_label: Mapped[str] = mapped_column(String(256))

@@ -11,6 +11,14 @@ export function classifyAxis(axis: AxisId, score: number): AxisClassification {
     return { label: 'Liberal marcado', color: 'bg-blue-700 text-white' };
   }
 
+  if (axis === 'progressivism_conservatism') {
+    if (score <= -3) return { label: 'Progresismo marcado', color: 'bg-emerald-600 text-white' };
+    if (score <= -1) return { label: 'Progresismo moderado', color: 'bg-emerald-100 text-emerald-900' };
+    if (score < 1) return { label: 'Centro / neutro', color: 'bg-gray-200 text-gray-800' };
+    if (score < 3) return { label: 'Conservadurismo moderado', color: 'bg-amber-100 text-amber-900' };
+    return { label: 'Conservadurismo marcado', color: 'bg-amber-600 text-white' };
+  }
+
   if (score <= -3) return { label: 'Peronismo marcado', color: 'bg-sky-600 text-white' };
   if (score <= -1) return { label: 'Afinidad peronista', color: 'bg-sky-100 text-sky-900' };
   if (score < 1) return { label: 'No alineado', color: 'bg-gray-200 text-gray-800' };

@@ -23,10 +23,12 @@ ALL_BUCKETS = ("izq", "centro", "der")
 AXIS_BUCKETS = {
     "statism_liberalism": ("estatista", "centro", "liberal"),
     "peronism_antiperonism": ("peronista", "centro", "antiperonista"),
+    "progressivism_conservatism": ("progresista", "centro", "conservador"),
 }
 AXIS_PORTAL_ATTR = {
     "statism_liberalism": "economic_bucket",
     "peronism_antiperonism": "peronism_bucket",
+    "progressivism_conservatism": "cultural_bucket",
 }
 MIN_ARTICLES_FOR_BLINDSPOT = 3
 

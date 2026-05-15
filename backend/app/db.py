@@ -37,6 +37,7 @@ _INCREMENTAL_COLUMNS: dict[str, dict[str, str]] = {
         "bias_bucket": "VARCHAR(16) NOT NULL DEFAULT 'centro'",
         "economic_bucket": "VARCHAR(16) NOT NULL DEFAULT 'centro'",
         "peronism_bucket": "VARCHAR(16) NOT NULL DEFAULT 'centro'",
+        "cultural_bucket": "VARCHAR(16) NOT NULL DEFAULT 'centro'",
     },
     "analyses": {
         "statism_liberalism_score": "FLOAT",
@@ -45,6 +46,9 @@ _INCREMENTAL_COLUMNS: dict[str, dict[str, str]] = {
         "peronism_antiperonism_score": "FLOAT",
         "peronism_antiperonism_label": "VARCHAR(128)",
         "peronism_antiperonism_justification": "TEXT",
+        "progressivism_conservatism_score": "FLOAT",
+        "progressivism_conservatism_label": "VARCHAR(128)",
+        "progressivism_conservatism_justification": "TEXT",
     },
     "articles": {
         "story_id": "INTEGER REFERENCES stories(id)",

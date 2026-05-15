@@ -32,6 +32,7 @@ def _aggregate(articles: list[Article]) -> PortalAggregate:
         return PortalAggregate(
             avg_statism_liberalism=None,
             avg_peronism_antiperonism=None,
+            avg_progressivism_conservatism=None,
             avg_emotional_load=None,
             article_count=len(articles),
             analyzed_count=0,
@@ -39,9 +40,16 @@ def _aggregate(articles: list[Article]) -> PortalAggregate:
     n = len(analyzed)
     avg_statism = sum(_statism_liberalism_axis(a.analysis).score for a in analyzed) / n
     avg_peronism = sum(_peronism_antiperonism_axis(a.analysis).score for a in analyzed) / n
+    cultural_scores = [
+        a.analysis.progressivism_conservatism_score
+        for a in analyzed
+        if a.analysis.progressivism_conservatism_score is not None
+    ]
+    avg_cultural = sum(cultural_scores) / len(cultural_scores) if cultural_scores else None
     return PortalAggregate(
         avg_statism_liberalism=avg_statism,
         avg_peronism_antiperonism=avg_peronism,
+        avg_progressivism_conservatism=avg_cultural,
         avg_emotional_load=sum(a.analysis.emotional_load for a in analyzed) / n,
         article_count=len(articles),
         analyzed_count=n,
@@ -74,6 +82,18 @@ def _peronism_label(score: float) -> str:
     return "Antiperonismo marcado"
 
 
+def _cultural_label(score: float) -> str:
+    if score <= -3:
+        return "Progresismo marcado"
+    if score <= -1:
+        return "Progresismo moderado"
+    if score < 1:
+        return "Centro / neutro"
+    if score < 3:
+        return "Conservadurismo moderado"
+    return "Conservadurismo marcado"
+
+
 def _statism_liberalism_axis(a) -> AxisScore:
     score = a.statism_liberalism_score if a.statism_liberalism_score is not None else a.libauth_score
     return AxisScore(
@@ -96,6 +116,18 @@ def _peronism_antiperonism_axis(a) -> AxisScore:
     )
 
 
+def _progressivism_conservatism_axis(a) -> AxisScore | None:
+    """Devuelve None para análisis legacy que no tienen el eje cultural."""
+    if a.progressivism_conservatism_score is None:
+        return None
+    return AxisScore(
+        score=a.progressivism_conservatism_score,
+        label=a.progressivism_conservatism_label
+        or _cultural_label(a.progressivism_conservatism_score),
+        justification=a.progressivism_conservatism_justification or "",
+    )
+
+
 def _to_analysis_schema(article: Article) -> Analysis | None:
     a = article.analysis
     if a is None:
@@ -107,6 +139,7 @@ def _to_analysis_schema(article: Article) -> Analysis | None:
     return Analysis(
         statism_liberalism=_statism_liberalism_axis(a),
         peronism_antiperonism=_peronism_antiperonism_axis(a),
+        progressivism_conservatism=_progressivism_conservatism_axis(a),
         emotional_load=a.emotional_load,
         framing=framing,
         neutral_summary=a.neutral_summary,
@@ -144,6 +177,7 @@ def list_portals(session: Annotated[Session, Depends(get_session)]) -> list[Port
             bias_bucket=p.bias_bucket,
             economic_bucket=p.economic_bucket,
             peronism_bucket=p.peronism_bucket,
+            cultural_bucket=p.cultural_bucket,
             last_refreshed_at=p.last_refreshed_at,
             aggregate=_aggregate(list(p.articles)),
         )
@@ -191,6 +225,7 @@ def get_portal(
         bias_bucket=portal.bias_bucket,
         economic_bucket=portal.economic_bucket,
         peronism_bucket=portal.peronism_bucket,
+        cultural_bucket=portal.cultural_bucket,
         last_refreshed_at=portal.last_refreshed_at,
         aggregate=_aggregate(articles),
         articles=article_summaries,
