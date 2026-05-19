@@ -175,6 +175,18 @@ PORTAL_SEEDS: list[PortalSeed] = [
         # (/Nancy-Mendez, /Juan-Manuel-Astiazaran) tienen 1-4 palabras → quedan fuera.
         link_pattern=r"^https?://www\.laizquierdadiario\.com/[\w]+(?:-[\w]+){5,}/?$",
     ),
+    PortalSeed(
+        slug="derecha-diario",
+        name="La Derecha Diario",
+        homepage_url="https://derechadiario.com.ar/",
+        description="Diario digital libertario / liberal-conservador, cercano al espacio LLA. Línea editorial militante pro-Milei y antiperonista.",
+        bias_bucket="der",
+        economic_bucket="liberal",
+        peronism_bucket="antiperonista",
+        # URLs de notas: /seccion/slug-largo (5+ segmentos en el slug).
+        # Secciones (/politica, /economia) y páginas internas cortas quedan fuera.
+        link_pattern=r"^https?://derechadiario\.com\.ar/[a-z-]+/[a-z0-9]+(?:-[a-z0-9]+){4,}/?$",
+    ),
 ]
 
 

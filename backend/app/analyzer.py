@@ -14,12 +14,32 @@ import json
 import logging
 import re
 import unicodedata
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from app.config import settings
 from app.schemas import Analysis, AxisScore, FramingFinding, ScrapedArticle
+
+
+# ---------------------------------------------------------------------------
+# Source prior: orientación editorial promedio del medio que publica el artículo.
+# Se inyecta en el USER message (no en SYSTEM, así no rompemos cache) como
+# desempate de PASO 1, nunca como input al score base.
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class SourcePrior:
+    economic_bucket: str = "centro"      # "estatista" | "centro" | "liberal"
+    peronism_bucket: str = "centro"      # "peronista" | "centro" | "antiperonista"
+
+    @property
+    def is_informative(self) -> bool:
+        """Si todos los buckets son 'centro' el prior no aporta señal."""
+        return any(
+            b != "centro"
+            for b in (self.economic_bucket, self.peronism_bucket)
+        )
 
 logger = logging.getLogger("sesgometro.analyzer")
 
@@ -99,9 +119,54 @@ Nunca respondas en texto libre, nunca uses markdown, nunca incluyas comentarios.
 </core_rules>
 
 <axis name="statism_liberalism" range="-5 a +5">
-Cómo se posiciona el texto respecto del rol del Estado en la economía.
+Cómo se posiciona el texto respecto del rol del Estado EN LA ECONOMÍA.
 Mirá: gasto público, impuestos, privatizaciones, regulación, sindicatos, déficit,
 subsidios, paritarias, tarifas, controles de precios/cambiarios.
+
+ALCANCE DEL EJE — IMPORTANTE:
+Este eje es ESTRICTAMENTE económico. NO incluye política exterior, defensa
+nacional, soberanía territorial, alineamiento geopolítico, ni FF.AA.
+Una nota que defiende un Estado fuerte en defensa nacional o que habla de
+"soberanía" frente a una potencia extranjera puede ser perfectamente liberal
+en lo económico (la derecha nacionalista típica). NO confundas defensa
+nacional con estatismo económico. Si el texto solo toca defensa/geopolítica
+y no economía, devolvé 0 con justificación "No aparece el eje económico en el texto".
+
+REGLA CLAVE — APLICAR EN ORDEN, NO SALTEAR PASOS:
+
+PASO 1 — Identificá la POSTURA DEL AUTOR frente a las medidas económicas.
+¿El texto critica o defiende las medidas de cada tipo?
+  (a) Critica el ajuste / recorte / privatizaciones / desregulación / motosierra
+      → el autor defiende un Estado activo en la economía.
+  (b) Defiende o celebra el ajuste / recorte / privatizaciones / desregulación
+      → el autor defiende reducir el Estado en la economía.
+  (c) Critica el gasto público / subsidios / paritarias / "el déficit"
+      → el autor está en la posición liberal.
+  (d) Defiende el gasto público / subsidios / paritarias / intervención estatal
+      → el autor está en la posición estatista.
+  (e) Mezcla, equidistante, descriptivo sin valorar, o no toca economía.
+
+PASO 2 — Asigná SIGNO según el PASO 1:
+  - (a) o (d): score NEGATIVO (estatista).
+  - (b) o (c): score POSITIVO (liberal).
+  - (e): score cercano a 0.
+
+PASO 3 — INTENSIDAD por tono: suave (+/-1), claro (+/-3), militante (+/-5).
+
+ERROR FRECUENTE A EVITAR — "trampa de la palabra descontextualizada":
+La palabra "ajuste" SOLA no determina el signo — la determina QUIÉN LA DICE
+Y EN QUÉ TONO. Una nota que critica al gobierno por ajustar es ESTATISTA,
+no liberal. Una nota que celebra el ajuste como "saneamiento" es LIBERAL.
+Si te encontrás justificando un score liberal con citas como "ataca el
+ajuste", "denuncia el recorte", "defiende a los docentes", "rechaza la
+motosierra" — releé el PASO 1, invertiste el signo.
+
+INDEPENDENCIA DE EJES: el signo de este eje NO se deriva del eje peronismo.
+Una nota antiperonista (positiva en peronism_antiperonism) puede ser
+estatista (negativo acá, ej. peronismo ortodoxo, sindicalismo no-K) o
+liberal (positivo acá, lo más común). Una nota peronista puede ser
+estatista (lo más común) o liberal (existe, ej. menemismo). Decidí cada
+eje con su propio PASO 1; no copiar signos entre ejes.
 
 Anchors:
   -5: defensa explícita de nacionalizaciones, controles cambiarios fuertes, gasto público sin techo
@@ -112,47 +177,19 @@ Anchors:
   +3: liberalismo claro, defensa del ajuste como "necesario", del recorte y la desregulación
   +5: liberalismo de mercado radical, ridiculización del Estado, anarcocapitalismo
 
-Lenguaje estatista cargado: "ajuste salvaje", "modelo nacional", "soberanía",
-"trabajadores", "redistribución", "desguace del Estado", "motosierra"
-Lenguaje liberal cargado: "casta", "déficit cero", "saneamiento fiscal", "shock", "libertad",
-"ajuste necesario", "republicanismo fiscal"
-</axis>
+Lenguaje estatista cargado (económico): "ajuste salvaje", "modelo nacional y popular",
+"los trabajadores" (como sujeto político), "redistribución", "desguace del Estado",
+"motosierra", "neoliberalismo", "ortodoxia del FMI"
+Lenguaje liberal cargado (económico): "casta", "déficit cero", "saneamiento fiscal",
+"shock", "libertad económica", "ajuste necesario", "republicanismo fiscal"
 
-<axis name="progressivism_conservatism" range="-5 a +5">
-Eje cultural-valorativo, independiente del económico y de la identidad peronista.
-Mirá: derechos sexuales y reproductivos (aborto, ESI), identidad de género y
-diversidad sexual, religión y rol de las iglesias en lo público, seguridad y
-punitivismo (mano dura vs garantismo), memoria de la dictadura (verdad y
-justicia vs "dos demonios" / reivindicación), drogas (legalización vs
-criminalización), inmigración.
-
-Anchors:
-  -5: progresismo militante, agenda feminista/LGTBI+ explícita, garantismo penal,
-      defensa activa de memoria/verdad/justicia con tono activista
-  -3: progresismo claro, valida derechos conquistados, crítico de iglesias en
-      asuntos públicos, antipunitivista
-  -1: leve progresismo (acepta la agenda sin militancia)
-   0: balanceado, equidistante, o no toca temas culturales-valorativos
-  +1: leve conservadurismo (referencias a "familia", orden, valores sin agresividad)
-  +3: conservadurismo claro, defensa de "la familia tradicional", crítica al
-      "lobby trans" / "ideología de género", mano dura, reivindicación de
-      las FF.AA. o de doctrina católica en lo público
-  +5: conservadurismo militante, antiprogresismo explícito, retórica anti-aborto
-      como "asesinato", "ideología de género" como adoctrinamiento, mano dura
-      sin matices
-
-REGLA: si el texto no toca temas culturales-valorativos (ej: una nota puramente
-económica o de política internacional), devolvé 0 con justificación "No aparece
-el eje en el texto". NO fuerces el score desde el eje económico ni desde el de
-peronismo — son ejes independientes (un peronista puede ser conservador en lo
-cultural, un libertario puede ser indistinto, etc.).
-
-Lenguaje progresista cargado: "derechos conquistados", "patriarcado",
-"colectivos", "comunidad LGTBI+", "memoria, verdad y justicia",
-"violencia institucional", "garantías constitucionales"
-Lenguaje conservador cargado: "familia tradicional", "valores", "ideología
-de género", "lobby trans", "orden", "mano dura", "decadencia moral",
-"adoctrinamiento", "ñoquis", "vagos"
+CONTRA-EJEMPLOS (palabras que NO van solas en este eje):
+- "soberanía" → puede ser peronista (anti-FMI) o anti-peronista (anti-China);
+  decide el contexto, no la palabra.
+- "defensa nacional" / "valores occidentales" / "patria" → marco identitario
+  o geopolítico, no económico. Mantené el eje en 0 si solo aparecen estos
+  términos sin referencia a rol del Estado en la economía.
+- "entreguismo" / "injerencia extranjera" → marco geopolítico, no estatista.
 </axis>
 
 <axis name="peronism_antiperonism" range="-5 a +5">
@@ -168,18 +205,62 @@ Anchors:
   +3: antiperonismo claro: "kirchnerato", "régimen K", ridiculización sistemática del peronismo
   +5: antiperonismo militante, gorilismo explícito, "kuka", "chorros", "destruyeron el país"
 
-REGLA CLAVE (gobierno LLA en 2026):
-- Una nota OPOSITORA al gobierno actual suele ser PERONISTA (score NEGATIVO),
-  no antiperonista.
-- Una nota OFICIALISTA suele ser ANTIPERONISTA (score POSITIVO), no peronista.
-- Para decidir el signo, preguntate: ¿qué le pasa al peronismo/kirchnerismo EN EL TEXTO?
-  Si lo critica/ridiculiza → positivo. Si lo defiende/reivindica → negativo.
-  Si no aparece, mirá si valida o ataca el proyecto libertario (proxy invertido).
+REGLA CLAVE (gobierno LLA en 2026) — APLICAR EN ORDEN, NO SALTEAR PASOS:
+
+PASO 1 — Identificá explícitamente al actor político criticado en el texto.
+¿A quién apunta la crítica, ridiculización o ataque principal? Opciones:
+  (a) El peronismo / kirchnerismo (UxP, CFK, Cámpora, sindicalismo K,
+      "la oposición" cuando significa peronismo, gobiernos K previos)
+  (b) El oficialismo libertario (Milei, LLA, Caputo, Bullrich, "el gobierno
+      actual" cuando se refiere al de Milei)
+  (c) Ninguno claro, ambos por igual, o un tercero (Macri, otra fuerza,
+      potencia extranjera sin lectura argentina)
+
+PASO 2 — Asigná el SIGNO según el PASO 1:
+  - Si (a) → score POSITIVO (antiperonista). El texto trata mal al peronismo.
+    Vale cualquier vocabulario que use; la dirección la fija el PASO 1.
+  - Si (b) → score NEGATIVO (afinidad peronista). Bajo Milei, la oposición
+    sistemática al gobierno suele venir del campo peronista.
+  - Si (c) → score cercano a 0.
+
+PASO 3 — La INTENSIDAD del score la fija el tono (suave, claro, militante),
+no la mera presencia del actor.
+
+ERROR FRECUENTE A EVITAR — "trampa del vocabulario contestado":
+Palabras como "soberanía", "defensa nacional", "valores occidentales",
+"entreguismo", "injerencia extranjera" NO determinan el signo por sí solas.
+La derecha nacionalista las usa para atacar al peronismo (p. ej. "los kukas
+entregaron recursos a China"), y el peronismo las usa para atacar al
+liberalismo (p. ej. "Milei entregó la soberanía al FMI"). Es el MISMO
+vocabulario apuntando a actores opuestos. SIEMPRE resolvé primero el PASO 1
+mirando a quién va dirigida la crítica, y solo después asignás el signo.
+
+Si te encontrás justificando un score peronista con citas como "critica al
+gobierno por entreguista" pero el medio es de derecha y el "entreguista" es
+el kirchnerismo entregando a China, releé el PASO 1 — invertiste el signo.
+
+Y AL REVÉS — simétrico: si te encontrás justificando un score antiperonista
+con citas como "critica al gobierno", "denuncia el ajuste", "cuestiona a
+Milei/Caputo/Bullrich" — releé el PASO 1, invertiste el signo. El gobierno
+actual (mayo 2026) ES antiperonista. Criticarlo es, por definición, alejarse
+del polo antiperonista. Score NEGATIVO (afinidad peronista), aunque el texto
+no use vocabulario peronista militante.
+
+HERENCIA MENCIONADA vs ACTOR CRITICADO:
+Una nota puede mencionar "lo que dejó el kirchnerismo" o "la pesada herencia"
+como ANTECEDENTE sin que ese sea el objeto de la crítica. El actor criticado
+es hacia quién va el VERBO DE JUICIO principal del texto:
+- "El gobierno no logra revertir la inflación heredada" → critica AL GOBIERNO
+  (LLA). Score peronism = NEGATIVO. La mención al kirchnerismo es contexto.
+- "El kirchnerismo dejó una inflación que el gobierno ya saneó" → critica AL
+  KIRCHNERISMO y elogia al gobierno. Score peronism = POSITIVO.
+La diferencia es a quién va el verbo principal, no a quién se nombra.
 
 Lenguaje peronista cargado: "movimiento nacional", "los trabajadores", "la patria",
 "compañero/a", "proyecto popular", "neoliberalismo"
-Lenguaje antiperonista cargado: "kuka", "kirchnerato", "régimen", "populismo", "chorros",
-"la corporación K", "casta política"
+Lenguaje antiperonista cargado: "populismo", "demagogia", "clientelismo",
+"la herencia", "modelo agotado", "intervencionismo", "concentración de poder",
+"corrupción K"
 </axis>
 
 <emotional_load range="0 a 1">
@@ -218,7 +299,6 @@ Incluí `quote` literal del texto cuando sea posible. Si no hay framing notable,
 
 <output_fields>
 - statism_liberalism.score, justification (con citas literales)
-- progressivism_conservatism.score, justification (con citas literales)
 - peronism_antiperonism.score, justification (con citas literales)
 - emotional_load
 - framing: lista de hallazgos
@@ -235,7 +315,6 @@ La cifra surge del informe semestral publicado por su director. Argentina muestr
 un saldo positivo en exportaciones agrícolas."
 Output esperado:
 - statism_liberalism.score: 0.0, justification: "Texto descriptivo sin valoración del rol del Estado"
-- progressivism_conservatism.score: 0.0, justification: "No aparece el eje cultural en el texto"
 - peronism_antiperonism.score: 0.0, justification: "No aparece el eje peronista en el texto"
 - emotional_load: 0.05
 - framing: []
@@ -250,7 +329,6 @@ de la corporación K de obstaculizar el saneamiento de las cuentas públicas. Lo
 del INDEC muestran que el modelo funciona."
 Output esperado:
 - statism_liberalism.score: +3.0, justification: "Valora positivamente 'ajuste fiscal' y 'saneamiento de cuentas', deslegitima oposición a la desregulación"
-- progressivism_conservatism.score: 0.0, justification: "El texto no toca temas culturales-valorativos"
 - peronism_antiperonism.score: +2.5, justification: "Usa 'corporación K' como término despectivo; legitima al gobierno LLA"
 - emotional_load: 0.55
 - framing: [loaded_language: "'corporación K' como descalificación"]
@@ -265,12 +343,55 @@ trabajadores. Mientras tanto, los grandes ganadores son las corporaciones financ
 La motosierra dejó miles de familias en la calle."
 Output esperado:
 - statism_liberalism.score: -3.5, justification: "Califica el ajuste como 'salvaje', 'motosierra'; defiende implícitamente el rol del Estado en proteger a los trabajadores"
-- progressivism_conservatism.score: 0.0, justification: "El texto es económico-laboral; no aparecen temas culturales-valorativos"
 - peronism_antiperonism.score: -2.5, justification: "Crítica al gobierno LLA usando marco peronista de 'trabajadores vs corporaciones'; bajo gobierno libertario, oposición = afinidad peronista"
 - emotional_load: 0.75
 - framing: [loaded_language: "'ajuste salvaje', 'motosierra' como descalificación"]
 - overall_label: "Columna estatista con afinidad peronista"
 - confidence: 0.8
+</example>
+
+<example>
+Tipo: crítica MODERADA al gobierno desde tono sobrio (NO militante peronista)
+(clave anti-inversión-de-signo en peronism_antiperonism)
+Titular: "El plan económico enfrenta el desafío del consumo"
+Texto resumido: "El programa de Caputo enfrenta una contradicción difícil: la
+inflación cede, pero el consumo sigue cayendo y la actividad industrial acumula
+seis meses en rojo. Economistas advierten que el modelo necesita recuperar
+dinamismo o se acerca un freno político. La oposición pide medidas de
+reactivación que el oficialismo descarta como populistas. Desde el equipo
+económico responden que la pesada herencia recibida del kirchnerismo todavía
+condiciona los márgenes de maniobra."
+
+PASO 1 (¿a quién critica?): al gobierno de Milei. Cuestiona el sostenimiento
+del plan económico oficial ("contradicción difícil", "freno político"). La
+mención al kirchnerismo aparece SOLO como antecedente citado por el
+oficialismo — NO es el actor criticado por el texto.
+PASO 2 (signo): el actor criticado es (b) → score NEGATIVO en peronism_antiperonism.
+
+Output esperado:
+- statism_liberalism.score: -1.0, justification: "Marco implícito favorable a
+  la reactivación / intervención ('el modelo necesita recuperar dinamismo');
+  expone caída de consumo y actividad como problema central"
+- peronism_antiperonism.score: -1.5, justification: "Cuestiona el plan económico
+  libertario sin valorar positivamente al peronismo. Bajo gobierno LLA, crítica
+  moderada al oficialismo = leve afinidad peronista. NO es militancia: el tono
+  es sobrio, sin vocabulario peronista clásico ('motosierra', 'trabajadores'),
+  pero el actor criticado es claramente el gobierno actual (antiperonista)."
+- emotional_load: 0.3
+- framing: [
+    emphasis: "destaca caída de consumo y actividad industrial como problema central del modelo",
+    source_selection: "cita economistas críticos en posición principal; el oficialismo aparece en posición defensiva"
+  ]
+- overall_label: "Nota moderadamente crítica al programa económico oficial"
+- confidence: 0.7
+
+PUNTO CRÍTICO: el texto menciona "kirchnerismo" UNA VEZ, en boca del propio
+gobierno como "herencia recibida". Eso NO convierte al kirchnerismo en actor
+criticado. El verbo de juicio del texto ("enfrenta una contradicción", "se
+acerca un freno") apunta al plan oficial. NO le pongas score positivo
+(antiperonista) por (a) aparecer la palabra "kirchnerismo", (b) que el
+oficialismo etiquete las críticas como "populistas", o (c) el tono sobrio.
+Crítica al gobierno LLA = afinidad peronista por defecto, aunque sea suave.
 </example>
 
 <example>
@@ -285,7 +406,6 @@ libertario. Bessent dijo que Milei estaba comprometido con sacar a China de la
 Argentina."
 Output esperado:
 - statism_liberalism.score: -1.5, justification: "Encuadra la pérdida de liquidez del BCRA como pérdida de capacidad estatal de defender el peso ('perdió liquidez para intervenir en defensa del peso') — valoración estatista implícita del rol del BCRA"
-- progressivism_conservatism.score: 0.0, justification: "Geopolítica y economía. No aparece eje cultural-valorativo."
 - peronism_antiperonism.score: -3.0, justification: "Titular ('cumplió otra orden de Trump') y cuerpo ('intervino para mejorar las chances electorales del oficialismo') encuadran al gobierno LLA como sometido a poder extranjero. Marco de soberanía vs subordinación = repertorio peronista. Opositora a gobierno LLA = afinidad peronista."
 - emotional_load: 0.55
 - framing: [
@@ -305,34 +425,41 @@ como "cable informativo equidistante" — sería un error grave de calibración.
 </example>
 
 <example>
-Tipo: columna cultural conservadora (eje cultural sin económico)
-Texto resumido: "La ley de aborto sigue siendo una herida abierta. Miles de bebés
-inocentes son asesinados cada año en nombre de una ideología de género que
-adoctrina a nuestros chicos en las escuelas. Hay que volver a defender la
-familia y los valores que nos dieron identidad como nación."
-Output esperado:
-- statism_liberalism.score: 0.0, justification: "No toma posición clara sobre rol del Estado"
-- progressivism_conservatism.score: +4.5, justification: "Llama 'asesinato' al aborto, usa 'ideología de género' como adoctrinamiento, reivindica 'familia' y 'valores'"
-- peronism_antiperonism.score: 0.0, justification: "No aparece el eje peronista en el texto"
-- emotional_load: 0.8
-- framing: [loaded_language: "'asesinato de bebés inocentes', 'adoctrinamiento'"]
-- overall_label: "Columna conservadora militante en lo cultural"
-- confidence: 0.85
-</example>
+Tipo: nota anti-peronista desde la derecha con vocabulario contestado
+(clave anti-inversión de signo)
+Titular: "El peronismo realizó un congreso de defensa y asistieron dos agregados militares chinos"
+Texto resumido: "El Partido Justicialista organizó un congreso sobre defensa
+nacional al que asistieron dos agregados militares de China sentados en la
+primera fila. La oposición peronista exhibió sus verdaderos colores: los del
+Partido Comunista Chino. El kirchnerismo ya ni siquiera oculta su plan de
+entregar los recursos estratégicos a potencias extranjeras que atentan contra
+los valores occidentales. El servilismo del peronismo frente a China es
+incompatible con la soberanía argentina."
 
-<example>
-Tipo: nota cultural progresista
-Texto resumido: "El colectivo feminista marchó por una nueva conquista de derechos.
-La memoria, verdad y justicia siguen siendo el horizonte. Frente al avance reaccionario,
-la respuesta es más derechos y más comunidad."
+PASO 1 (¿a quién critica?): al peronismo / kirchnerismo. Lo acusa de servil,
+entreguista, alineado con China.
+PASO 2 (signo): el actor criticado es (a) → score POSITIVO en peronism_antiperonism.
+
 Output esperado:
-- statism_liberalism.score: 0.0, justification: "No toma posición clara sobre rol del Estado"
-- progressivism_conservatism.score: -3.5, justification: "Usa 'derechos conquistados', 'memoria, verdad y justicia' con tono militante; presenta lo conservador como 'reaccionario'"
-- peronism_antiperonism.score: 0.0, justification: "No aparece el eje peronista en el texto"
-- emotional_load: 0.7
-- framing: [loaded_language: "'avance reaccionario'"]
-- overall_label: "Columna progresista militante en lo cultural"
-- confidence: 0.8
+- statism_liberalism.score: 0.0, justification: "El texto trata defensa nacional
+  y geopolítica, no economía. El eje económico no aparece."
+- peronism_antiperonism.score: +3.0, justification: "Ataque directo al peronismo,
+  acusándolo de servilismo y entreguismo frente a China. Usa marco
+  anti-peronista clásico ('exhibió sus verdaderos colores: los del PC chino')."
+- emotional_load: 0.75
+- framing: [
+    loaded_language: "marco de 'servilismo' y 'entreguismo' contra el peronismo",
+    emphasis: "destaca presencia de agregados militares chinos como símbolo de alineamiento forzado"
+  ]
+- overall_label: "Nota anti-peronista con marco de soberanía vs alineamiento extranjero"
+- confidence: 0.85
+
+PUNTO CRÍTICO: aunque el texto use "soberanía" y "valores occidentales"
+—vocabulario que también aparece en notas peronistas—, acá está apuntando
+CONTRA el peronismo. El signo del eje peronism_antiperonism lo decide el
+PASO 1 (a quién critica), no el vocabulario suelto. Y aunque hable de
+"defensa nacional" y "soberanía", el eje estatista queda en 0 porque no
+toca economía.
 </example>
 
 <example>
@@ -341,7 +468,6 @@ Texto resumido: "Boca venció a River 2-0 en la final de la Copa Argentina con g
 de Cavani y Merentiel."
 Output esperado:
 - statism_liberalism.score: 0.0, justification: "Nota deportiva sin contenido político"
-- progressivism_conservatism.score: 0.0, justification: "Nota deportiva sin contenido cultural-valorativo"
 - peronism_antiperonism.score: 0.0, justification: "Nota deportiva sin contenido político"
 - emotional_load: 0.1
 - framing: []
@@ -352,16 +478,34 @@ Output esperado:
 
 <verification>
 Antes de cerrar el JSON, repasá cada finding de `framing`:
-- Si tiene `quote`: chequeá que esas palabras aparezcan, IDÉNTICAS, en el bloque
-  "Texto del artículo:" del mensaje del usuario. Si no aparecen (porque las
-  copiaste de los ejemplos de este prompt o las inventaste), eliminá ese finding
-  del array.
-- Si no podés citar nada verificable del texto, devolvé `framing: []`. Es mejor
-  un análisis sin findings que uno con citas inventadas.
+
+1. QUOTE: Si tiene `quote`, chequeá que esas palabras aparezcan IDÉNTICAS en
+   el bloque "Texto del artículo:" del mensaje del usuario. Si no aparecen
+   (porque las copiaste de los ejemplos de este prompt o las inventaste),
+   eliminá ese finding del array.
+
+2. DESCRIPTION: La `description` también debe ser fiel al texto recibido.
+   No reciclás descripciones de los ejemplos de este prompt. Específicamente:
+   - Si tu description menciona actores que NO aparecen en el artículo
+     (ej: "Bessent", "Tesoro de EE.UU.", "funcionarios estadounidenses",
+     "Cavani", "Trump", "Kicillof", etc.) pero el artículo no habla de
+     ellos, eliminá ese finding o re-escribí la description con los actores
+     reales del texto.
+   - Si tu description usa frases largas casi textuales de los ejemplos
+     (ej: "se citan funcionarios estadounidenses en frases hostiles a la
+     soberanía argentina"), reescribila desde cero con lo que realmente
+     dice ESTE artículo.
+
+3. NEUTRAL_SUMMARY: aplicá el mismo criterio que con description — solo
+   con actores y eventos que aparezcan en el artículo recibido.
+
+4. Si no podés generar findings verificables del texto, devolvé `framing: []`.
+   Es mejor un análisis sin findings que uno con contenido inventado o
+   copiado de los ejemplos.
 </verification>
 
 Recordá: devolvé SOLO el objeto JSON que cumple el esquema. Sin prefijos, sin
-``` ```, sin texto adicional. /no_think
+``` ```, sin texto adicional.
 """
 
 # ---------------------------------------------------------------------------
@@ -372,14 +516,6 @@ ANALYSIS_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "statism_liberalism": {
-            "type": "object",
-            "properties": {
-                "score": {"type": "number", "minimum": -5, "maximum": 5},
-                "justification": {"type": "string"},
-            },
-            "required": ["score", "justification"],
-        },
-        "progressivism_conservatism": {
             "type": "object",
             "properties": {
                 "score": {"type": "number", "minimum": -5, "maximum": 5},
@@ -417,7 +553,6 @@ ANALYSIS_JSON_SCHEMA: dict[str, Any] = {
     },
     "required": [
         "statism_liberalism",
-        "progressivism_conservatism",
         "peronism_antiperonism",
         "emotional_load",
         "framing",
@@ -428,7 +563,41 @@ ANALYSIS_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
-def _build_user_message(article: ScrapedArticle) -> str:
+_SOURCE_PRIOR_TEMPLATE = """\
+
+<source_prior_advisory>
+Línea editorial promedio del medio que publica esta nota:
+{lines}
+
+USO RESTRINGIDO — leelo entero antes de usarlo:
+1. Analizá el texto por sí solo (core_rules #1). Decidí los scores leyendo el
+   artículo, no este bloque.
+2. SOLO usalo como desempate de PASO 1 cuando el actor criticado quede
+   genuinamente ambiguo entre dos polos opuestos por falta de atribución en el
+   texto. En ese caso podés inclinar el SIGNO hacia la línea del medio; la
+   INTENSIDAD sigue saliendo del tono del texto.
+3. NUNCA amplifiques un score que ya determinaste desde el texto usando este
+   bloque.
+4. NUNCA invertís un signo claro porque acá diga otra cosa. Una nota que va
+   contra la línea promedio del medio es información válida, no un error a
+   corregir con el prior.
+5. Si lo usaste para desempatar, anotalo en la justificación del eje afectado:
+   "(prior del medio usado por ambigüedad)".
+</source_prior_advisory>"""
+
+
+def _build_source_prior_block(prior: SourcePrior) -> str:
+    bucket_lines = []
+    if prior.economic_bucket != "centro":
+        bucket_lines.append(f"- Económico: {prior.economic_bucket}")
+    if prior.peronism_bucket != "centro":
+        bucket_lines.append(f"- Peronismo/antiperonismo: {prior.peronism_bucket}")
+    return _SOURCE_PRIOR_TEMPLATE.format(lines="\n".join(bucket_lines))
+
+
+def _build_user_message(
+    article: ScrapedArticle, source_prior: SourcePrior | None = None
+) -> str:
     parts = [
         f"Titular: {article.title or '(sin titular)'}",
         f"Medio: {article.site_name or '(desconocido)'}",
@@ -437,7 +606,10 @@ def _build_user_message(article: ScrapedArticle) -> str:
         "Texto del artículo:",
         article.text,
     ]
-    return "\n".join(parts)
+    message = "\n".join(parts)
+    if source_prior is not None and source_prior.is_informative:
+        message += _build_source_prior_block(source_prior)
+    return message
 
 
 def _truncate(text: str, max_chars: int = 24000) -> str:
@@ -513,8 +685,11 @@ def _filter_hallucinated_findings(
 # ---------------------------------------------------------------------------
 # Implementación con Ollama (LLM local).
 # ---------------------------------------------------------------------------
-def _analyze_with_ollama(article: ScrapedArticle) -> Analysis:
-    user_text = _truncate(_build_user_message(article))
+def _analyze_with_ollama(
+    article: ScrapedArticle, source_prior: SourcePrior | None = None
+) -> Analysis:
+    prior_active = source_prior is not None and source_prior.is_informative
+    user_text = _truncate(_build_user_message(article, source_prior))
 
     payload = {
         "model": settings.ollama_model,
@@ -524,9 +699,12 @@ def _analyze_with_ollama(article: ScrapedArticle) -> Analysis:
         ],
         "format": ANALYSIS_JSON_SCHEMA,
         "stream": False,
-        # Qwen3 trae "thinking mode" prendido por default; lo apagamos para
-        # acelerar la respuesta y evitar bloques <think> en el output.
-        "think": False,
+        # Qwen3 con thinking ON: el modelo razona antes de responder. Esto cuesta
+        # latencia (+10-30s/nota) pero ataca un error sistemático en la tarea —
+        # invertir el signo de los ejes cuando el texto usa vocabulario
+        # contestado (ej. "soberanía" en una nota anti-peronista). El bloque
+        # <think>...</think> que pueda colarse en content lo limpia _strip_thinking.
+        "think": True,
         "options": {
             "temperature": 0.2,
             "top_p": 0.9,
@@ -550,7 +728,6 @@ def _analyze_with_ollama(article: ScrapedArticle) -> Analysis:
 
     return Analysis(
         statism_liberalism=AxisScore(**data["statism_liberalism"]),
-        progressivism_conservatism=AxisScore(**data["progressivism_conservatism"]),
         peronism_antiperonism=AxisScore(**data["peronism_antiperonism"]),
         emotional_load=float(data["emotional_load"]),
         framing=framing,
@@ -559,6 +736,7 @@ def _analyze_with_ollama(article: ScrapedArticle) -> Analysis:
         confidence=float(data["confidence"]),
         model_version=f"ollama:{settings.ollama_model}",
         is_mock=False,
+        source_prior_used=prior_active,
     )
 
 
@@ -575,7 +753,6 @@ def _analyze_mock(article: ScrapedArticle) -> Analysis:
     peronism = normed(1, -3.5, 3.5)
     emo = normed(2, 0.1, 0.8)
     conf = normed(3, 0.45, 0.85)
-    cultural = normed(4, -3.5, 3.5)
 
     def statism_label(s: float) -> str:
         if s <= -3:
@@ -599,17 +776,6 @@ def _analyze_mock(article: ScrapedArticle) -> Analysis:
             return "Antiperonismo moderado"
         return "Antiperonismo marcado"
 
-    def cultural_label(s: float) -> str:
-        if s <= -3:
-            return "Progresismo marcado"
-        if s <= -1:
-            return "Progresismo moderado"
-        if s < 1:
-            return "Centro / neutro"
-        if s < 3:
-            return "Conservadurismo moderado"
-        return "Conservadurismo marcado"
-
     sample_quote = article.text.split(".")[0][:140] + "..." if "." in article.text else None
 
     return Analysis(
@@ -620,11 +786,6 @@ def _analyze_mock(article: ScrapedArticle) -> Analysis:
                 "[MOCK] Análisis simulado a partir del hash del texto. "
                 "Levantá Ollama (ollama serve) con qwen3:8b para análisis real."
             ),
-        ),
-        progressivism_conservatism=AxisScore(
-            score=cultural,
-            label=cultural_label(cultural),
-            justification="[MOCK] Eje cultural progresismo-conservadurismo simulado.",
         ),
         peronism_antiperonism=AxisScore(
             score=peronism,
@@ -648,7 +809,7 @@ def _analyze_mock(article: ScrapedArticle) -> Analysis:
             f"({article.word_count} palabras). Levantá Ollama para resumen real."
         ),
         overall_label=(
-            f"[MOCK] {statism_label(statism)} · {cultural_label(cultural)} · "
+            f"[MOCK] {statism_label(statism)} · "
             f"{peronism_label(peronism)} · carga emocional {emo}"
         ),
         confidence=conf,
@@ -660,11 +821,13 @@ def _analyze_mock(article: ScrapedArticle) -> Analysis:
 # ---------------------------------------------------------------------------
 # Entrada pública.
 # ---------------------------------------------------------------------------
-def analyze(article: ScrapedArticle) -> Analysis:
+def analyze(
+    article: ScrapedArticle, source_prior: SourcePrior | None = None
+) -> Analysis:
     if settings.use_mock_analyzer:
         return _analyze_mock(article)
     try:
-        return _analyze_with_ollama(article)
+        return _analyze_with_ollama(article, source_prior=source_prior)
     except Exception as exc:
         logger.warning(
             "Falló análisis con Ollama (%s); caigo a mock para no romper el pipeline.",

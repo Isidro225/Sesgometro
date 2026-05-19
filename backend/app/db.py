@@ -49,11 +49,13 @@ _INCREMENTAL_COLUMNS: dict[str, dict[str, str]] = {
         "progressivism_conservatism_score": "FLOAT",
         "progressivism_conservatism_label": "VARCHAR(128)",
         "progressivism_conservatism_justification": "TEXT",
+        "source_prior_used": "BOOLEAN NOT NULL DEFAULT FALSE",
     },
     "articles": {
         "story_id": "INTEGER REFERENCES stories(id)",
         "embedding_json": "TEXT",
         "image_url": "VARCHAR(1024)",
+        "text": "TEXT",
     },
     "stories": {
         "alerted_at": "DATETIME",

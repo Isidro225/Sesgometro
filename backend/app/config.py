@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     ollama_num_ctx: int = 16384
     ollama_timeout_seconds: int = 180
 
+    # Si está activo, el analyzer recibe la orientación editorial promedio del
+    # medio (económico + peronismo) como tie-breaker SOLO para PASO 1 ambiguo.
+    # No es input al score base. Off por default para poder comparar A/B contra
+    # análisis ciegos.
+    use_source_prior: bool = False
+
     scraper_timeout_seconds: int = 15
 
     frontend_origin: str = "http://localhost:5173"

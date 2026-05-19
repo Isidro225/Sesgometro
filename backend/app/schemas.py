@@ -44,6 +44,9 @@ class Analysis(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     model_version: str
     is_mock: bool
+    # True si el analyzer recibió source_prior informativo (no centro/centro/centro)
+    # como desempate de PASO 1. Default False para compat con análisis viejos.
+    source_prior_used: bool = False
 
 
 # ---------------------------------------------------------------------------

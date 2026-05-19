@@ -125,6 +125,7 @@ def _persist_article_and_analysis(
             published_at=scraped_meta.get("published_at"),
             word_count=scraped_meta.get("word_count"),
             image_url=scraped_meta.get("image_url"),
+            text=article_text,
         )
         session.add(article)
         session.flush()
@@ -134,6 +135,9 @@ def _persist_article_and_analysis(
         article.published_at = scraped_meta.get("published_at") or article.published_at
         article.word_count = scraped_meta.get("word_count") or article.word_count
         article.image_url = scraped_meta.get("image_url") or article.image_url
+        # Pisamos text siempre que el scrape devolvió algo (último cuerpo conocido).
+        if article_text:
+            article.text = article_text
 
     framing_payload = [f.model_dump() for f in analysis.framing]
 
@@ -173,6 +177,7 @@ def _persist_article_and_analysis(
                 framing_json=json.dumps(framing_payload, ensure_ascii=False),
                 model_version_str=analysis.model_version,
                 is_mock=analysis.is_mock,
+                source_prior_used=analysis.source_prior_used,
             )
         )
     else:
@@ -199,6 +204,7 @@ def _persist_article_and_analysis(
         a.framing_json = json.dumps(framing_payload, ensure_ascii=False)
         a.model_version_str = analysis.model_version
         a.is_mock = analysis.is_mock
+        a.source_prior_used = analysis.source_prior_used
 
     # Embedding + clustering en historias + posible alerta de blindspot.
     # Usamos el `neutral_summary` (no el body scrapeado) para que el embedding
@@ -228,6 +234,18 @@ def _already_analyzed(portal_id: int, article_url: str) -> bool:
         return article is not None and article.analysis is not None
 
 
+def _prior_for_seed(seed: PortalSeed) -> analyzer.SourcePrior | None:
+    """Construye el SourcePrior desde el seed del portal si la feature está activa.
+    El cultural_bucket no viene del seed (es derivado de análisis previos),
+    así que lo dejamos en 'centro' para no realimentar circular."""
+    if not settings.use_source_prior:
+        return None
+    return analyzer.SourcePrior(
+        economic_bucket=seed.economic_bucket,
+        peronism_bucket=seed.peronism_bucket,
+    )
+
+
 async def _process_article(seed: PortalSeed, portal_id: int, article_url: str) -> int:
     """Devuelve 1 si se hizo trabajo (scrape + analyze), 0 si se saltó."""
     if await to_thread.run_sync(_already_analyzed, portal_id, article_url):
@@ -239,8 +257,11 @@ async def _process_article(seed: PortalSeed, portal_id: int, article_url: str) -
         if not politics_filter.is_political_news(article_data.title, article_data.text, article_url):
             logger.info("Skip no político: %s", article_url)
             return 0
+        prior = _prior_for_seed(seed)
         async with _ANALYZER_SEMAPHORE:
-            analysis = await to_thread.run_sync(analyzer.analyze, article_data)
+            analysis = await to_thread.run_sync(
+                lambda: analyzer.analyze(article_data, source_prior=prior)
+            )
     except Exception as exc:
         logger.warning("Falló análisis de %s: %s", article_url, exc)
         return 0

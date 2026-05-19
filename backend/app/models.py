@@ -43,6 +43,11 @@ class Article(Base):
     author: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Cuerpo del artículo tal como vino del scraper. Lo persistimos para poder
+    # re-analizar (cambiar de prompt o modelo) sin volver a scrapear, lo cual
+    # es lento, frágil con Cloudflare, y puede devolver texto distinto si el
+    # medio editó la nota. Truncamos al límite del analyzer (24k chars).
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     story_id: Mapped[int | None] = mapped_column(ForeignKey("stories.id"), nullable=True, index=True)
     embedding_json: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -82,6 +87,7 @@ class Analysis(Base):
     framing_json: Mapped[str] = mapped_column(Text)
     model_version_str: Mapped[str] = mapped_column(String(64))
     is_mock: Mapped[bool] = mapped_column(default=False)
+    source_prior_used: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     article: Mapped[Article] = relationship(back_populates="analysis")
