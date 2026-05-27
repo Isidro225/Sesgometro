@@ -266,6 +266,14 @@ async def _process_article(seed: PortalSeed, portal_id: int, article_url: str) -
         logger.warning("Falló análisis de %s: %s", article_url, exc)
         return 0
 
+    # Barrera defensiva: con un proveedor real nunca debería volver un mock
+    # (analyze() propaga la excepción en vez de caer a mock). Pero si por lo que
+    # sea llegara uno, NO lo persistimos: mejor dejar la nota sin analizar y
+    # reintentarla que ensuciar la BD con datos falsos.
+    if analysis.is_mock and settings.analyzer_provider != "mock":
+        logger.warning("Análisis mock inesperado para %s; no lo persisto.", article_url)
+        return 0
+
     def _save() -> None:
         with SessionLocal() as session:
             portal = session.get(Portal, portal_id)

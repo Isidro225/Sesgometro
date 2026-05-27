@@ -923,14 +923,9 @@ def analyze(
     provider = settings.analyzer_provider
     if provider == "mock":
         return _analyze_mock(article)
-    try:
-        if provider == "anthropic":
-            return _analyze_with_anthropic(article, source_prior=source_prior)
-        return _analyze_with_ollama(article, source_prior=source_prior)
-    except Exception as exc:
-        logger.warning(
-            "Falló análisis con proveedor '%s' (%s); caigo a mock para no romper el pipeline.",
-            provider,
-            exc,
-        )
-        return _analyze_mock(article)
+    # Con un proveedor real NUNCA caemos a mock: si la llamada falla, propagamos
+    # la excepción para que el caller saltee la nota (no se persiste nada) y se
+    # reintente en el próximo refresh. Así jamás se guarda un análisis mock en BD.
+    if provider == "anthropic":
+        return _analyze_with_anthropic(article, source_prior=source_prior)
+    return _analyze_with_ollama(article, source_prior=source_prior)
