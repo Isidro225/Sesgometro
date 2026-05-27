@@ -6,13 +6,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    # Proveedor del analyzer: "anthropic" (Claude API), "ollama" (LLM local) o
+    # "mock" (determinista por hash, para desarrollar UI sin LLM).
+    # Default anthropic: el system prompt está diseñado para Claude y Haiku 4.5
+    # lo sigue sin los parches anti-qwen. Si falla la llamada, analyze() cae a mock
+    # para no romper el pipeline.
+    analyzer_provider: str = "anthropic"
+
     anthropic_api_key: str = ""
-    analysis_model: str = "claude-sonnet-4-6"
+    # Haiku 4.5 para todo el análisis. El system prompt (~8k tokens) se cachea con
+    # prompt caching, así que el costo por nota posterior es marginal.
+    analysis_model: str = "claude-haiku-4-5-20251001"
+    anthropic_max_tokens: int = 2048
+    # NOTA: Anthropic no expone API de embeddings y Haiku es un modelo de chat, no
+    # de embeddings. El clustering usa TF sparse local (app/embeddings.py); estos
+    # campos quedan sin uso y solo se conservan por compat con .env viejos.
     prescreen_model: str = "claude-haiku-4-5-20251001"
     embedding_model: str = "claude-haiku-4-5-20251001"
 
-    # Ollama (LLM local). Si ollama_enabled=True el analyzer corre contra el
-    # servidor local en `ollama_base_url`. Si está apagado o falla, cae a mock.
+    # Ollama (LLM local). Solo se usa si analyzer_provider="ollama".
     ollama_enabled: bool = True
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3:8b"
@@ -46,7 +58,7 @@ class Settings(BaseSettings):
 
     @property
     def use_mock_analyzer(self) -> bool:
-        return not self.ollama_enabled
+        return self.analyzer_provider == "mock"
 
     @property
     def frontend_origins(self) -> list[str]:

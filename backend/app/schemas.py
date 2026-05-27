@@ -252,3 +252,29 @@ class AlertItem(BaseModel):
 class AlertsResponse(BaseModel):
     unread_count: int
     items: list[AlertItem]
+
+
+# ---------------------------------------------------------------------------
+# Registro de visitas
+# ---------------------------------------------------------------------------
+
+
+class TrackRequest(BaseModel):
+    """Pageview reportado por la SPA. `path` es la ruta lógica del frontend
+    (p. ej. "/portales/clarin"), no la del API."""
+
+    path: str = Field(..., min_length=1, max_length=1024)
+    referrer: str | None = Field(default=None, max_length=1024)
+
+
+class PathCount(BaseModel):
+    path: str
+    count: int
+
+
+class VisitStats(BaseModel):
+    window_days: int
+    total_requests: int
+    total_pageviews: int
+    unique_visitors: int
+    top_paths: list[PathCount]

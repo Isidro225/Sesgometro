@@ -683,6 +683,102 @@ def _filter_hallucinated_findings(
 
 
 # ---------------------------------------------------------------------------
+# Implementación con Anthropic (Claude API).
+#
+# Usamos forced tool use: definimos una tool cuyo input_schema es ANALYSIS_JSON_SCHEMA
+# y forzamos a Claude a llamarla (tool_choice). Así obtenemos JSON estructurado y
+# validado sin parsear texto libre.
+#
+# El system prompt (~8k tokens) es estático → lo cacheamos con cache_control. El
+# breakpoint va en el bloque de system, que en orden de render (tools → system →
+# messages) cachea tanto las tools como el system. Haiku 4.5 cachea prefijos de
+# >=4096 tokens, así que el system entra holgado. El user message (la nota) va
+# después del breakpoint, fuera del cache, que es lo que cambia en cada llamada.
+# ---------------------------------------------------------------------------
+_ANALYSIS_TOOL: dict[str, Any] = {
+    "name": "registrar_analisis_de_sesgo",
+    "description": (
+        "Registra el análisis de orientación política del artículo. Devolvé "
+        "SIEMPRE todos los campos respetando el esquema."
+    ),
+    "input_schema": ANALYSIS_JSON_SCHEMA,
+}
+
+# Cliente perezoso: no instanciamos hasta la primera nota, para no exigir API key
+# cuando se corre en modo ollama/mock.
+_anthropic_client: Any = None
+
+
+def _get_anthropic_client() -> Any:
+    global _anthropic_client
+    if _anthropic_client is None:
+        import anthropic  # import local: no es dependencia dura si no se usa
+
+        if not settings.anthropic_api_key:
+            raise RuntimeError(
+                "analyzer_provider='anthropic' pero ANTHROPIC_API_KEY no está configurada"
+            )
+        _anthropic_client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    return _anthropic_client
+
+
+def _analyze_with_anthropic(
+    article: ScrapedArticle, source_prior: SourcePrior | None = None
+) -> Analysis:
+    prior_active = source_prior is not None and source_prior.is_informative
+    user_text = _truncate(_build_user_message(article, source_prior))
+    client = _get_anthropic_client()
+
+    response = client.messages.create(
+        model=settings.analysis_model,
+        max_tokens=settings.anthropic_max_tokens,
+        system=[
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        tools=[_ANALYSIS_TOOL],
+        tool_choice={"type": "tool", "name": _ANALYSIS_TOOL["name"]},
+        messages=[{"role": "user", "content": user_text}],
+    )
+
+    usage = response.usage
+    logger.info(
+        "Anthropic análisis (%s): input=%s cache_write=%s cache_read=%s output=%s",
+        settings.analysis_model,
+        usage.input_tokens,
+        getattr(usage, "cache_creation_input_tokens", 0),
+        getattr(usage, "cache_read_input_tokens", 0),
+        usage.output_tokens,
+    )
+
+    tool_block = next((b for b in response.content if b.type == "tool_use"), None)
+    if tool_block is None:
+        raise RuntimeError(
+            f"Anthropic no devolvió tool_use (stop_reason={response.stop_reason})"
+        )
+    data = tool_block.input
+
+    raw_findings = [FramingFinding(**f) for f in data.get("framing", [])]
+    framing = _filter_hallucinated_findings(raw_findings, article.text)
+
+    return Analysis(
+        statism_liberalism=AxisScore(**data["statism_liberalism"]),
+        peronism_antiperonism=AxisScore(**data["peronism_antiperonism"]),
+        emotional_load=float(data["emotional_load"]),
+        framing=framing,
+        neutral_summary=data["neutral_summary"],
+        overall_label=data["overall_label"],
+        confidence=float(data["confidence"]),
+        model_version=f"anthropic:{settings.analysis_model}",
+        is_mock=False,
+        source_prior_used=prior_active,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Implementación con Ollama (LLM local).
 # ---------------------------------------------------------------------------
 def _analyze_with_ollama(
@@ -824,13 +920,17 @@ def _analyze_mock(article: ScrapedArticle) -> Analysis:
 def analyze(
     article: ScrapedArticle, source_prior: SourcePrior | None = None
 ) -> Analysis:
-    if settings.use_mock_analyzer:
+    provider = settings.analyzer_provider
+    if provider == "mock":
         return _analyze_mock(article)
     try:
+        if provider == "anthropic":
+            return _analyze_with_anthropic(article, source_prior=source_prior)
         return _analyze_with_ollama(article, source_prior=source_prior)
     except Exception as exc:
         logger.warning(
-            "Falló análisis con Ollama (%s); caigo a mock para no romper el pipeline.",
+            "Falló análisis con proveedor '%s' (%s); caigo a mock para no romper el pipeline.",
+            provider,
             exc,
         )
         return _analyze_mock(article)
