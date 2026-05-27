@@ -41,7 +41,6 @@ export function ArticleDetailPage() {
         <PortalAxisPills
           economicBucket={data.portal.economic_bucket}
           peronismBucket={data.portal.peronism_bucket}
-          culturalBucket={data.portal.cultural_bucket}
         />
         {user && <FavoriteButton articleId={Number(id)} initial={data.is_favorite} />}
       </section>

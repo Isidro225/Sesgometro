@@ -14,8 +14,6 @@ export type FramingFinding = {
 export type Analysis = {
   statism_liberalism: AxisScore;
   peronism_antiperonism: AxisScore;
-  /** Análisis previos a 2026-05-15 no tienen este eje (queda null). */
-  progressivism_conservatism: AxisScore | null;
   emotional_load: number;
   framing: FramingFinding[];
   neutral_summary: string;
@@ -39,17 +37,12 @@ export type ScrapedArticle = {
 export type BiasBucket = 'izq' | 'centro' | 'der';
 export type EconomicBucket = 'estatista' | 'centro' | 'liberal';
 export type PeronismBucket = 'peronista' | 'centro' | 'antiperonista';
-export type CulturalBucket = 'progresista' | 'centro' | 'conservador';
-export type AxisId =
-  | 'statism_liberalism'
-  | 'peronism_antiperonism'
-  | 'progressivism_conservatism';
-export type AxisBucket = EconomicBucket | PeronismBucket | CulturalBucket | BiasBucket;
+export type AxisId = 'statism_liberalism' | 'peronism_antiperonism';
+export type AxisBucket = EconomicBucket | PeronismBucket | BiasBucket;
 
 export type PortalAggregate = {
   avg_statism_liberalism: number | null;
   avg_peronism_antiperonism: number | null;
-  avg_progressivism_conservatism: number | null;
   avg_emotional_load: number | null;
   article_count: number;
   analyzed_count: number;
@@ -65,7 +58,6 @@ export type PortalSummary = {
   bias_bucket: BiasBucket;
   economic_bucket: EconomicBucket;
   peronism_bucket: PeronismBucket;
-  cultural_bucket: CulturalBucket;
   last_refreshed_at: string | null;
   aggregate: PortalAggregate;
 };
@@ -98,11 +90,9 @@ export type ArticleFeedItem = {
   bias_bucket: BiasBucket;
   economic_bucket: EconomicBucket;
   peronism_bucket: PeronismBucket;
-  cultural_bucket: CulturalBucket;
   overall_label: string | null;
   statism_liberalism_score: number | null;
   peronism_antiperonism_score: number | null;
-  progressivism_conservatism_score: number | null;
   emotional_load: number | null;
   is_mock: boolean;
   story_id: number | null;
@@ -115,7 +105,6 @@ export type ArticlePortalRef = {
   bias_bucket: BiasBucket;
   economic_bucket: EconomicBucket;
   peronism_bucket: PeronismBucket;
-  cultural_bucket: CulturalBucket;
 };
 
 export type ArticleDetail = {
@@ -166,14 +155,12 @@ export type StoryArticle = {
   bias_bucket: BiasBucket;
   economic_bucket: EconomicBucket;
   peronism_bucket: PeronismBucket;
-  cultural_bucket: CulturalBucket;
   title: string | null;
   url: string;
   published_at: string | null;
   overall_label: string | null;
   statism_liberalism_score: number | null;
   peronism_antiperonism_score: number | null;
-  progressivism_conservatism_score: number | null;
   left_right_score?: number | null;
 };
 

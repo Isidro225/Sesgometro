@@ -3,13 +3,12 @@ type Props = {
   score: number | null | undefined;
   leftLabel: string;
   rightLabel: string;
-  tone?: 'economic' | 'peronism' | 'cultural' | 'legacy';
+  tone?: 'economic' | 'peronism' | 'legacy';
 };
 
 const TONES: Record<NonNullable<Props['tone']>, string> = {
   economic: 'from-red-500 via-gray-200 to-blue-700',
   peronism: 'from-sky-500 via-gray-200 to-violet-500',
-  cultural: 'from-emerald-500 via-gray-200 to-amber-600',
   legacy: 'from-red-400 via-gray-200 to-blue-500',
 };
 

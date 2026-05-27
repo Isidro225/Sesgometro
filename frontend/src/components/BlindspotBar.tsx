@@ -3,7 +3,6 @@ import type {
   AxisCoverage,
   AxisId,
   BucketCoverage,
-  CulturalBucket,
   EconomicBucket,
   PeronismBucket,
 } from '../types';
@@ -81,32 +80,11 @@ const AXIS_CONFIG: Record<AxisId, AxisConfig> = {
       antiperonista: 'bg-violet-50 border-violet-200 text-violet-900',
     },
   },
-  progressivism_conservatism: {
-    title: 'Progresismo / conservadurismo',
-    order: ['progresista', 'centro', 'conservador'],
-    labels: {
-      progresista: 'Progresismo',
-      centro: 'Centro',
-      conservador: 'Conservadurismo',
-    },
-    colors: {
-      progresista: 'bg-emerald-500',
-      centro: 'bg-gray-400',
-      conservador: 'bg-amber-600',
-    },
-    light: {
-      progresista: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-      centro: 'bg-gray-100 border-gray-300 text-gray-800',
-      conservador: 'bg-amber-50 border-amber-200 text-amber-900',
-    },
-  },
 };
 
 function inferConfig(bucket: AxisBucket): AxisConfig {
   if (bucket === 'estatista' || bucket === 'liberal') return AXIS_CONFIG.statism_liberalism;
   if (bucket === 'peronista' || bucket === 'antiperonista') return AXIS_CONFIG.peronism_antiperonism;
-  if (bucket === 'progresista' || bucket === 'conservador')
-    return AXIS_CONFIG.progressivism_conservatism;
   return LEGACY_CONFIG;
 }
 
@@ -223,17 +201,14 @@ export function BucketPill({ bucket, axis }: { bucket: AxisBucket; axis?: AxisId
 export function PortalAxisPills({
   economicBucket,
   peronismBucket,
-  culturalBucket,
 }: {
   economicBucket: EconomicBucket;
   peronismBucket: PeronismBucket;
-  culturalBucket?: CulturalBucket;
 }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       <BucketPill bucket={economicBucket} axis="statism_liberalism" />
       <BucketPill bucket={peronismBucket} axis="peronism_antiperonism" />
-      {culturalBucket && <BucketPill bucket={culturalBucket} axis="progressivism_conservatism" />}
     </div>
   );
 }

@@ -111,12 +111,6 @@ export function PortalsPage() {
                     rightLabel="Antiperonismo"
                     tone="peronism"
                   />
-                  <AxisBar
-                    score={portal.aggregate.avg_progressivism_conservatism}
-                    leftLabel="Progresismo"
-                    rightLabel="Conservadurismo"
-                    tone="cultural"
-                  />
                 </div>
 
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/60">

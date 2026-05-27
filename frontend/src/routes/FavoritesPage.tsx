@@ -95,13 +95,6 @@ export function FavoritesPage() {
                       size="sm"
                       axis="peronism_antiperonism"
                     />
-                    {article.analysis.progressivism_conservatism && (
-                      <OrientationBadge
-                        score={article.analysis.progressivism_conservatism.score}
-                        size="sm"
-                        axis="progressivism_conservatism"
-                      />
-                    )}
                   </div>
                 )}
               </div>

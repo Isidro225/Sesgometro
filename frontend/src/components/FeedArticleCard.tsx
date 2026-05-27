@@ -64,13 +64,6 @@ export function FeedArticleCard({ article }: { article: ArticleFeedItem }) {
             axis="peronism_antiperonism"
             size="sm"
           />
-          {article.progressivism_conservatism_score !== null && (
-            <OrientationBadge
-              score={article.progressivism_conservatism_score}
-              axis="progressivism_conservatism"
-              size="sm"
-            />
-          )}
         </div>
       </div>
     </article>

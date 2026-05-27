@@ -21,15 +21,16 @@ from app.schemas import AxisCoverage, BucketCoverage, StoryArticle, StoryDetail,
 router = APIRouter(prefix="/api/stories", tags=["stories"])
 
 ALL_BUCKETS = ("izq", "centro", "der")
+# El eje cultural (progresismo/conservadurismo) se deprecó: el analyzer ya no lo
+# produce, así que no lo incluimos en cobertura ni blindspots. Los campos de
+# schema/DB quedan por compat pero vienen null/centro y no se exponen en el front.
 AXIS_BUCKETS = {
     "statism_liberalism": ("estatista", "centro", "liberal"),
     "peronism_antiperonism": ("peronista", "centro", "antiperonista"),
-    "progressivism_conservatism": ("progresista", "centro", "conservador"),
 }
 AXIS_PORTAL_ATTR = {
     "statism_liberalism": "economic_bucket",
     "peronism_antiperonism": "peronism_bucket",
-    "progressivism_conservatism": "cultural_bucket",
 }
 MIN_ARTICLES_FOR_BLINDSPOT = 3
 

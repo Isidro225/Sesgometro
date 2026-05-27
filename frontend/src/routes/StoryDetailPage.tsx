@@ -8,13 +8,11 @@ import type { AxisBucket, AxisCoverage, AxisId, StoryArticle, StoryDetail } from
 const AXIS_LABEL: Record<AxisId, string> = {
   statism_liberalism: 'Estatismo / liberalismo',
   peronism_antiperonism: 'Peronismo / antiperonismo',
-  progressivism_conservatism: 'Progresismo / conservadurismo',
 };
 
 const AXIS_BUCKETS: Record<AxisId, AxisBucket[]> = {
   statism_liberalism: ['estatista', 'centro', 'liberal'],
   peronism_antiperonism: ['peronista', 'centro', 'antiperonista'],
-  progressivism_conservatism: ['progresista', 'centro', 'conservador'],
 };
 
 const BUCKET_LABEL: Record<string, string> = {
@@ -22,14 +20,11 @@ const BUCKET_LABEL: Record<string, string> = {
   liberal: 'liberalismo',
   peronista: 'peronismo',
   antiperonista: 'antiperonismo',
-  progresista: 'progresismo',
-  conservador: 'conservadurismo',
   centro: 'centro',
 };
 
 function bucketForAxis(article: StoryArticle, axis: AxisId): AxisBucket {
   if (axis === 'statism_liberalism') return article.economic_bucket;
-  if (axis === 'progressivism_conservatism') return article.cultural_bucket;
   return article.peronism_bucket;
 }
 
@@ -53,7 +48,6 @@ function ArticleCard({ article }: { article: StoryArticle }) {
         <PortalAxisPills
           economicBucket={article.economic_bucket}
           peronismBucket={article.peronism_bucket}
-          culturalBucket={article.cultural_bucket}
         />
       </div>
       <Link
@@ -75,13 +69,6 @@ function ArticleCard({ article }: { article: StoryArticle }) {
             score={article.peronism_antiperonism_score}
             size="sm"
             axis="peronism_antiperonism"
-          />
-        )}
-        {article.progressivism_conservatism_score !== null && (
-          <OrientationBadge
-            score={article.progressivism_conservatism_score}
-            size="sm"
-            axis="progressivism_conservatism"
           />
         )}
       </div>
