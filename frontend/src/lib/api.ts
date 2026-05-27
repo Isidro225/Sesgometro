@@ -152,3 +152,16 @@ export const markAlertRead = (id: number): Promise<void> =>
 
 export const markAllAlertsRead = (): Promise<void> =>
   request<void>('/api/me/alerts/read-all', { method: 'POST' });
+
+// --- Tracking de visitas ---------------------------------------------------
+
+/** Reporta una navegación (pageview) al backend. Fire-and-forget: nunca lanza
+ * ni bloquea la navegación. `path` es la ruta lógica del front. */
+export function trackPageview(path: string): void {
+  void request<void>('/api/track', {
+    method: 'POST',
+    body: JSON.stringify({ path, referrer: document.referrer || null }),
+  }).catch(() => {
+    /* el tracking nunca debe romper la app */
+  });
+}

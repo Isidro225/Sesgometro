@@ -24,6 +24,25 @@ logger = logging.getLogger("sesgometro.visits")
 # la lectura de estadísticas.
 _SKIP_PREFIXES = ("/health", "/api/track", "/api/stats/visits")
 
+# Marcadores de user-agent de bots/crawlers/monitores. Si alguno aparece (o no
+# hay UA), no contamos la visita. Match por substring en minúsculas.
+_BOT_UA_MARKERS = (
+    "bot", "crawl", "spider", "slurp", "facebookexternalhit", "embedly",
+    "pinterest", "redditbot", "applebot", "yandex", "baiduspider", "bingpreview",
+    "semrush", "ahrefs", "mj12", "dotbot", "petalbot", "scrapy", "python-requests",
+    "curl/", "wget", "go-http-client", "okhttp", "java/", "libwww", "httpclient",
+    "headless", "lighthouse", "pingdom", "uptimerobot", "statuscake", "monitor",
+)
+
+
+def is_bot(user_agent: str | None) -> bool:
+    """True si el UA parece un bot/crawler/monitor (o no hay UA: casi siempre
+    un script o health-probe, no un navegador real)."""
+    if not user_agent:
+        return True
+    ua = user_agent.lower()
+    return any(marker in ua for marker in _BOT_UA_MARKERS)
+
 
 def _client_ip(request: Request) -> str | None:
     """IP del cliente respetando el proxy de Railway (X-Forwarded-For)."""
@@ -45,7 +64,11 @@ def hash_ip(ip: str | None) -> str | None:
 def should_log_request(request: Request) -> bool:
     if request.method in ("OPTIONS", "HEAD"):
         return False
-    return not any(request.url.path.startswith(p) for p in _SKIP_PREFIXES)
+    if any(request.url.path.startswith(p) for p in _SKIP_PREFIXES):
+        return False
+    if is_bot(request.headers.get("user-agent")):
+        return False
+    return True
 
 
 def record_visit(

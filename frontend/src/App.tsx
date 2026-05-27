@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { PageTracker } from './components/PageTracker';
 import { AuthProvider } from './context/AuthContext';
 import { HomePage } from './routes/HomePage';
 import { PortalsPage } from './routes/PortalsPage';
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <PageTracker />
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />

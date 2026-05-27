@@ -65,14 +65,19 @@ app.include_router(visits.router)
 
 @app.middleware("http")
 async def log_visits(request: Request, call_next):
-    """Registra cada request HTTP real en la tabla `visits` (kind='request').
+    """Registra requests HTTP "interesantes" en la tabla `visits` (kind='request').
 
-    Corre después de resolver el response para poder guardar el status code. El
-    registro va a una sesión de BD propia y está blindado contra errores, así que
-    nunca afecta la respuesta al cliente.
+    Filtra bots y preflight (ver should_log_request) y, además, NO loguea lecturas
+    GET exitosas: las navegaciones reales de humanos ya se registran como pageviews
+    vía POST /api/track. El log de requests queda como telemetría liviana de
+    escrituras (POST/PUT/PATCH/DELETE) y errores (status >= 400).
+
+    Corre después de resolver el response para tener el status. El registro usa su
+    propia sesión de BD y está blindado, así que nunca afecta la respuesta.
     """
     response = await call_next(request)
-    if should_log_request(request):
+    routine_read = request.method == "GET" and response.status_code < 400
+    if should_log_request(request) and not routine_read:
         record_visit(
             kind="request",
             path=request.url.path,

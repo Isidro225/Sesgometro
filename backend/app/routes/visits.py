@@ -12,21 +12,26 @@ from app.db import get_session
 from app.models import User, Visit
 from app.schemas import PathCount, TrackRequest, VisitStats
 from app.security import get_current_user
-from app.visits import _client_ip, record_visit
+from app.visits import _client_ip, is_bot, record_visit
 
 router = APIRouter(prefix="/api", tags=["visits"])
 
 
 @router.post("/track", status_code=status.HTTP_204_NO_CONTENT)
 def track(payload: TrackRequest, request: Request) -> Response:
-    """Registra una navegación de la SPA como pageview. Abierto (sin auth)."""
-    record_visit(
-        kind="pageview",
-        path=payload.path,
-        ip=_client_ip(request),
-        user_agent=request.headers.get("user-agent"),
-        referrer=payload.referrer or request.headers.get("referer"),
-    )
+    """Registra una navegación de la SPA como pageview. Abierto (sin auth).
+
+    Los bots no ejecutan JS y no llegan acá, pero igual filtramos por UA por las
+    dudas, así un pageview siempre representa a un humano real."""
+    user_agent = request.headers.get("user-agent")
+    if not is_bot(user_agent):
+        record_visit(
+            kind="pageview",
+            path=payload.path,
+            ip=_client_ip(request),
+            user_agent=user_agent,
+            referrer=payload.referrer or request.headers.get("referer"),
+        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -46,9 +51,11 @@ def visit_stats(
     total_pageviews = session.scalar(
         select(func.count()).select_from(Visit).where(recent, Visit.kind == "pageview")
     ) or 0
+    # Visitantes únicos = humanos que vieron páginas (pageviews ya vienen sin
+    # bots), contados por IP hasheada distinta.
     unique_visitors = session.scalar(
         select(func.count(func.distinct(Visit.ip_hash))).where(
-            recent, Visit.ip_hash.is_not(None)
+            recent, Visit.kind == "pageview", Visit.ip_hash.is_not(None)
         )
     ) or 0
 
