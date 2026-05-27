@@ -167,22 +167,21 @@ class UserAlertRead(Base):
 class Visit(Base):
     """Registro de visitas a la web.
 
-    Dos fuentes lo alimentan:
-    - El middleware de `main.py` registra cada request HTTP real (kind="request").
-    - El frontend puede reportar navegaciones de la SPA llamando a POST /api/track
-      (kind="pageview"), que captura el path lógico de la página, no el del API.
+    Lo alimenta el frontend reportando navegaciones de la SPA vía POST /api/track
+    (kind="pageview"), que captura el path lógico de la página, no el del API.
 
-    No guardamos la IP en claro: la hasheamos con un salt del servidor para poder
-    contar visitantes únicos sin almacenar el dato personal.
+    `ip` guarda la dirección cruda (dato personal: ver obligaciones de la Ley
+    25.326 / GDPR) e `ip_hash` el hash salteado para contar únicos.
     """
 
     __tablename__ = "visits"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    kind: Mapped[str] = mapped_column(String(16), default="request", index=True)
+    kind: Mapped[str] = mapped_column(String(16), default="pageview", index=True)
     path: Mapped[str] = mapped_column(String(1024), index=True)
     method: Mapped[str | None] = mapped_column(String(8), nullable=True)
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     referrer: Mapped[str | None] = mapped_column(String(1024), nullable=True)

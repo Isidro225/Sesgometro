@@ -1,9 +1,7 @@
 """Registro de visitas a la web.
 
-Lógica compartida entre el middleware HTTP (que loguea cada request) y el
-endpoint POST /api/track (que loguea pageviews reportados por la SPA).
-
-El escritor nunca debe romper el request que lo originó: todo va envuelto en
+Solo registramos pageviews reportados por la SPA vía POST /api/track. El
+escritor nunca debe romper el request que lo originó: todo va envuelto en
 try/except y usa su propia sesión de BD de corta vida.
 """
 from __future__ import annotations
@@ -18,11 +16,6 @@ from app.db import SessionLocal
 from app.models import Visit
 
 logger = logging.getLogger("sesgometro.visits")
-
-# Paths que no cuentan como visita real: health-check, preflight CORS, el propio
-# endpoint de tracking (lo registra el handler como pageview, no como request) y
-# la lectura de estadísticas.
-_SKIP_PREFIXES = ("/health", "/api/track", "/api/stats/visits")
 
 # Marcadores de user-agent de bots/crawlers/monitores. Si alguno aparece (o no
 # hay UA), no contamos la visita. Match por substring en minúsculas.
@@ -61,16 +54,6 @@ def hash_ip(ip: str | None) -> str | None:
     return hashlib.sha256(salted).hexdigest()[:32]
 
 
-def should_log_request(request: Request) -> bool:
-    if request.method in ("OPTIONS", "HEAD"):
-        return False
-    if any(request.url.path.startswith(p) for p in _SKIP_PREFIXES):
-        return False
-    if is_bot(request.headers.get("user-agent")):
-        return False
-    return True
-
-
 def record_visit(
     *,
     kind: str,
@@ -90,6 +73,7 @@ def record_visit(
                     path=path[:1024],
                     method=method,
                     status_code=status_code,
+                    ip=(ip or "")[:45] or None,
                     ip_hash=hash_ip(ip),
                     user_agent=(user_agent or "")[:512] or None,
                     referrer=(referrer or "")[:1024] or None,

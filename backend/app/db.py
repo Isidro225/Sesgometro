@@ -60,6 +60,9 @@ _INCREMENTAL_COLUMNS: dict[str, dict[str, str]] = {
     "stories": {
         "alerted_at": "DATETIME",
     },
+    "visits": {
+        "ip": "VARCHAR(45)",
+    },
 }
 
 

@@ -5,9 +5,13 @@ Por qué proxy en vez de hotlink directo desde el medio:
 - Robusto contra hotlink protection / Referer-blocking de algunos portales.
 - Cache en disco: cada (url, width) se baja una sola vez.
 
-Whitelist: solo se aceptan URLs cuyo host pertenezca al dominio registrable de
-algún portal seed (incluye subdominios tipo CDN: `images.clarin.com`,
-`media.lanacion.com.ar`). Sin esto sería un open proxy.
+Whitelist: solo se sirven URLs que nosotros mismos scrapeamos y guardamos como
+`articles.image_url`. El frontend nunca pide otra cosa (ver `thumbUrl` en
+api.ts). Validar contra la BD —en vez de contra el dominio de la homepage—
+evita el open proxy y a la vez soporta los CDN de terceros: medios sobre Arc
+Publishing (Infobae, La Nación, TN, Cronista) sirven imágenes desde dominios
+ajenos (`*.cloudfront.net`, `arc-anglerfish-*.s3.amazonaws.com`, `arcdc.net`)
+que una whitelist por homepage rechazaba con 403.
 """
 from __future__ import annotations
 
@@ -22,9 +26,12 @@ from curl_cffi.requests.errors import RequestsError
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from PIL import Image, UnidentifiedImageError
+from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
-from app.portals import PORTAL_SEEDS
+from app.db import SessionLocal
+from app.models import Article
 
 logger = logging.getLogger("sesgometro.images")
 
@@ -40,32 +47,19 @@ WEBP_QUALITY = 78
 CACHE_HEADERS = {"Cache-Control": "public, max-age=604800, immutable"}
 
 
-def _registrable_domain(host: str) -> str:
-    """Aproximación: últimos 3 labels para SLDs tipo `.com.ar`, últimos 2 para `.com`."""
-    parts = host.lower().split(".")
-    if (
-        len(parts) >= 3
-        and parts[-2] in {"com", "co", "org", "gov", "net"}
-        and len(parts[-1]) == 2
-    ):
-        return ".".join(parts[-3:])
-    return ".".join(parts[-2:]) if len(parts) >= 2 else host
+def _is_known_image(url: str) -> bool:
+    """True si `url` figura como imagen de algún artículo en la BD.
 
-
-_ALLOWED_DOMAINS: set[str] = {
-    _registrable_domain(urlparse(seed.homepage_url).hostname or "")
-    for seed in PORTAL_SEEDS
-}
-
-
-def _is_allowed(url: str) -> bool:
-    parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
+    Es la whitelist real: solo servimos imágenes que nosotros scrapeamos, sin
+    importar el CDN que las hostee. Query corto e indexado-suficiente; corre en
+    threadpool porque la sesión es síncrona y esto se llama desde un endpoint
+    async (y solo en cache miss)."""
+    if urlparse(url).scheme not in ("http", "https"):
         return False
-    host = (parsed.hostname or "").lower()
-    if not host:
-        return False
-    return _registrable_domain(host) in _ALLOWED_DOMAINS
+    with SessionLocal() as session:
+        return session.scalar(
+            select(Article.id).where(Article.image_url == url).limit(1)
+        ) is not None
 
 
 def _cache_path(url: str, width: int) -> Path:
@@ -80,8 +74,8 @@ async def proxy_image(
 ):
     if w not in ALLOWED_WIDTHS:
         raise HTTPException(400, f"Ancho inválido. Permitidos: {sorted(ALLOWED_WIDTHS)}")
-    if not _is_allowed(u):
-        raise HTTPException(403, "URL no permitida (host fuera de la whitelist).")
+    if not await run_in_threadpool(_is_known_image, u):
+        raise HTTPException(403, "URL no permitida (no es una imagen registrada).")
 
     cache_file = _cache_path(u, w)
     if cache_file.exists():
